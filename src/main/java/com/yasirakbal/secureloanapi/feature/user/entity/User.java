@@ -1,5 +1,11 @@
 package com.yasirakbal.secureloanapi.feature.user.entity;
 
+import com.yasirakbal.secureloanapi.common.entity.BaseEntity;
+import com.yasirakbal.secureloanapi.feature.application.entity.LoanApplication;
+import com.yasirakbal.secureloanapi.feature.audit.entity.LoginHistory;
+import com.yasirakbal.secureloanapi.feature.audit.entity.SecurityAuditLog;
+import com.yasirakbal.secureloanapi.feature.blacklist.entity.JwtBlacklist;
+import com.yasirakbal.secureloanapi.feature.loan.entity.Loan;
 import com.yasirakbal.secureloanapi.feature.user.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -9,15 +15,17 @@ import lombok.ToString;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", indexes = {
+        @Index(name = "idx_email", columnList = "email"),
+        @Index(name = "idx_identity_number", columnList = "identityNumber"),
+        @Index(name = "idx_username", columnList = "username")
+})
 @Data
-public class User {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
+public class User extends BaseEntity {
     @Column(nullable = false, length = 50, unique = true)
     private String username;
 
@@ -51,6 +59,26 @@ public class User {
     @Enumerated(EnumType.STRING)
     private UserRole role;
 
+    //Relations
+
+    @OneToMany(mappedBy = "customer")
+    private List<LoanApplication> applications = new ArrayList<>();
+
+    @OneToMany(mappedBy = "evaluator")
+    private List<LoanApplication> evaluatedApplications = new ArrayList<>();
+
+    @OneToMany(mappedBy = "customer")
+    private List<Loan> loans = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user")
+    private List<LoginHistory> loginHistories = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user")
+    private List<SecurityAuditLog> auditLogs = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user")
+    private List<JwtBlacklist> jwtBlacklists = new ArrayList<>();
+
     //Security Fields
 
     @Column(nullable = false)
@@ -76,22 +104,4 @@ public class User {
 
     @Column(nullable = false)
     private Boolean passwordExpired = false;
-
-    @Column(nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-        if (passwordExpired == null) passwordExpired = false;
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 }

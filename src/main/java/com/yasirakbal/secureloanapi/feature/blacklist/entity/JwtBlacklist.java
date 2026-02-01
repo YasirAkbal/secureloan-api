@@ -1,0 +1,40 @@
+package com.yasirakbal.secureloanapi.feature.blacklist.entity;
+
+import com.yasirakbal.secureloanapi.common.entity.BaseEntity;
+import com.yasirakbal.secureloanapi.feature.blacklist.enums.JwtBlacklistReason;
+import com.yasirakbal.secureloanapi.feature.loan.enums.LoanStatusType;
+import com.yasirakbal.secureloanapi.feature.user.entity.User;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "jwt_blacklists", indexes = {
+        @Index(name = "idx_token", columnList = "token"),
+        @Index(name = "idx_user_id", columnList = "user_id"),
+        @Index(name = "idx_expires_at", columnList = "expires_at")
+})
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class JwtBlacklist extends BaseEntity {
+    @Column(length = 500, nullable = false, unique = true)
+    private String token;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    @Column(nullable = false, length = 50)
+    @Enumerated(EnumType.STRING)
+    private JwtBlacklistReason reason;
+
+    @Column(nullable = false)
+    private LocalDateTime blacklistedAt;
+
+    @Column(nullable = false)
+    private LocalDateTime expiresAt;
+}
