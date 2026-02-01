@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: secureloan-api-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: secureloan-api
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - secureloan_postgres_data:/var/lib/postgresql/data
+      #- ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - secureloan-api-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  secureloan_postgres_data:
+    driver: local
+
+networks:
+  secureloan-api-network:
+    driver: bridge
