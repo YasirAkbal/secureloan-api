@@ -20,9 +20,9 @@ import java.util.List;
 
 @Entity
 @Table(name = "users", indexes = {
-        @Index(name = "idx_email", columnList = "email"),
-        @Index(name = "idx_identity_number", columnList = "identityNumber"),
-        @Index(name = "idx_username", columnList = "username")
+        @Index(name = "idx_users_email", columnList = "email"),
+        @Index(name = "idx_users_identity_number", columnList = "identityNumber"),
+        @Index(name = "idx_users_username", columnList = "username")
 })
 @Data
 public class User extends BaseEntity {

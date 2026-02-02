@@ -15,9 +15,9 @@ import java.util.List;
 
 @Entity
 @Table(name = "loans", indexes = {
-        @Index(name = "idx_customer_id", columnList = "customer_id"),
-        @Index(name = "idx_status", columnList = "status"),
-        @Index(name = "idx_next_due_date", columnList = "next_due_date")
+        @Index(name = "idx_loans_customer_id", columnList = "customer_id"),
+        @Index(name = "idx_loans_status", columnList = "status"),
+        @Index(name = "idx_loans_next_due_date", columnList = "next_due_date")
 })
 @Getter
 @Setter

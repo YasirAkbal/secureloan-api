@@ -14,8 +14,7 @@ import java.time.LocalDate;
 @PasswordMatches
 public class UserRegisterRequest {
     @NotBlank
-    @Min(3)
-    @Max(50)
+    @Size(min = 6, max = 50)
     private String username;
 
     @NotBlank
@@ -40,7 +39,7 @@ public class UserRegisterRequest {
     private String phoneNumber;
 
     @NonNull
-    private LocalDate dateOfBirth;
+    private LocalDate birthDate;
 
     @NonNull
     @Positive

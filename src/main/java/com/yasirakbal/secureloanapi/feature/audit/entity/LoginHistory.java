@@ -9,9 +9,9 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "login_histories", indexes = {
-        @Index(name = "idx_user_id", columnList = "user_id"),
-        @Index(name = "idx_timestamp", columnList = "timestamp"),
-        @Index(name = "idx_success", columnList = "success")
+        @Index(name = "idx_login_histories_user_id", columnList = "user_id"),
+        @Index(name = "idx_login_histories_timestamp", columnList = "timestamp"),
+        @Index(name = "idx_login_histories_success", columnList = "success")
 })
 @Getter
 @Setter
@@ -42,5 +42,5 @@ public class LoginHistory extends BaseEntity {
     private String failureReason;
 
     @Column(nullable = false)
-    private LocalDateTime timeStamp;
+    private LocalDateTime timestamp;
 }

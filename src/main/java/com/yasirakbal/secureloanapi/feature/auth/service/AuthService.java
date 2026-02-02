@@ -2,6 +2,7 @@ package com.yasirakbal.secureloanapi.feature.auth.service;
 
 import com.yasirakbal.secureloanapi.common.exception.BusinessException;
 import com.yasirakbal.secureloanapi.feature.user.entity.User;
+import com.yasirakbal.secureloanapi.feature.user.enums.UserRole;
 import com.yasirakbal.secureloanapi.feature.user.exception.EmailDuplicationException;
 import com.yasirakbal.secureloanapi.feature.user.exception.IdentityNumberDuplicationException;
 import com.yasirakbal.secureloanapi.feature.user.exception.UserCreationValidationException;
@@ -31,6 +32,7 @@ public class AuthService {
 
         String hashedPassword = passwordEncoder.encode(userToCreate.getPassword());
         userToCreate.setPassword(hashedPassword);
+        userToCreate.setRole(UserRole.CUSTOMER);
 
         return userRepository.save(userToCreate);
     }

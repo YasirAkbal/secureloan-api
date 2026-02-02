@@ -11,9 +11,9 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "jwt_blacklists", indexes = {
-        @Index(name = "idx_token", columnList = "token"),
-        @Index(name = "idx_user_id", columnList = "user_id"),
-        @Index(name = "idx_expires_at", columnList = "expires_at")
+        @Index(name = "idx_jwt_blacklists_token", columnList = "token"),
+        @Index(name = "idx_jwt_blacklists_user_id", columnList = "user_id"),
+        @Index(name = "idx_jwt_blacklists_expires_at", columnList = "expires_at")
 })
 @Getter
 @Setter

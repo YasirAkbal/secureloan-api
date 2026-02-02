@@ -10,10 +10,10 @@ import java.util.Map;
 
 @Entity
 @Table(name = "security_audit_logs", indexes = {
-        @Index(name = "idx_user_id", columnList = "user_id"),
-        @Index(name = "idx_action", columnList = "action"),
-        @Index(name = "idx_timestamp", columnList = "timestamp"),
-        @Index(name = "idx_success", columnList = "success")
+        @Index(name = "idx_security_audit_logs_user_id", columnList = "user_id"),
+        @Index(name = "idx_security_audit_logs_action", columnList = "action"),
+        @Index(name = "idx_security_audit_logs_timestamp", columnList = "timestamp"),
+        @Index(name = "idx_security_audit_logs_success", columnList = "success")
 })
 @Getter
 @Setter
