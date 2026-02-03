@@ -24,9 +24,8 @@ public class JwtBlacklist extends BaseEntity {
     @Column(length = 500, nullable = false, unique = true)
     private String token;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User user;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
     @Column(nullable = false, length = 50)
     @Enumerated(EnumType.STRING)

@@ -1,6 +1,7 @@
 package com.yasirakbal.secureloanapi.feature.user.entity;
 
 import com.yasirakbal.secureloanapi.common.entity.BaseEntity;
+import com.yasirakbal.secureloanapi.common.enums.RecordStatus;
 import com.yasirakbal.secureloanapi.feature.application.entity.LoanApplication;
 import com.yasirakbal.secureloanapi.feature.audit.entity.LoginHistory;
 import com.yasirakbal.secureloanapi.feature.audit.entity.SecurityAuditLog;

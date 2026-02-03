@@ -4,8 +4,12 @@ import com.yasirakbal.secureloanapi.common.exception.BusinessException;
 import com.yasirakbal.secureloanapi.feature.auth.adapter.AppUserAdapter;
 import com.yasirakbal.secureloanapi.feature.auth.dto.LoginResponse;
 import com.yasirakbal.secureloanapi.feature.auth.exception.InvalidCredentialsException;
+import com.yasirakbal.secureloanapi.feature.auth.exception.UserPasswordExpiredException;
 import com.yasirakbal.secureloanapi.feature.auth.exception.UserAccountDisabledException;
 import com.yasirakbal.secureloanapi.feature.auth.exception.UserAccountLockedException;
+import com.yasirakbal.secureloanapi.feature.blacklist.entity.JwtBlacklist;
+import com.yasirakbal.secureloanapi.feature.blacklist.enums.JwtBlacklistReason;
+import com.yasirakbal.secureloanapi.feature.blacklist.service.JwtBlacklistService;
 import com.yasirakbal.secureloanapi.feature.user.entity.User;
 import com.yasirakbal.secureloanapi.feature.user.enums.UserRole;
 import com.yasirakbal.secureloanapi.feature.user.exception.EmailDuplicationException;
@@ -15,20 +19,20 @@ import com.yasirakbal.secureloanapi.feature.user.exception.UsernameDuplicationEx
 import com.yasirakbal.secureloanapi.feature.user.repository.UserRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.security.auth.login.AccountLockedException;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +45,7 @@ public class AuthService {
     private PasswordEncoder passwordEncoder;
     private AuthenticationManager authenticationManager;
     private JwtEncoder jwtEncoder;
+    private JwtBlacklistService jwtBlacklistService;
 
     @Transactional
     public User registerUser(User userToCreate) {
@@ -72,6 +77,7 @@ public class AuthService {
         return validationErrors;
     }
 
+    @Transactional
     public LoginResponse login(String username, String password) {
         User user = userRepository.findUserByUsername(username)
                 .orElseThrow(InvalidCredentialsException::new);
@@ -86,6 +92,18 @@ public class AuthService {
                 throw new UserAccountLockedException(user.getLockedUntil());
             }
         }
+
+        if(user.getPasswordExpired()) {
+            throw new UserPasswordExpiredException();
+        }
+
+        boolean isPasswordExpiredRightNow = checkIfPasswordExpired(user);
+        if(isPasswordExpiredRightNow) {
+            user.setPasswordExpired(true);
+            userRepository.save(user);
+            throw new UserPasswordExpiredException();
+        }
+
 
         try {
             var authToken = new UsernamePasswordAuthenticationToken(
@@ -111,6 +129,7 @@ public class AuthService {
                     .expiresIn(1800)
                     .user(userResponse)
                     .build();
+
         } catch (LockedException e) {
             throw new UserAccountLockedException("Account is temporarily locked");
         } catch (DisabledException e) {
@@ -119,6 +138,16 @@ public class AuthService {
             handleFailedLogin(user);
             throw new InvalidCredentialsException();
         }
+    }
+
+    private boolean checkIfPasswordExpired(User user) {
+        LocalDateTime passwordChangedAt = user.getPasswordChangedAt();
+        LocalDateTime currentTime = LocalDateTime.now();
+
+        return passwordChangedAt != null
+                && ChronoUnit.DAYS.between(passwordChangedAt, currentTime) >= 90
+                || passwordChangedAt == null
+                && ChronoUnit.DAYS.between(user.getCreatedAt(), currentTime) >= 90;
     }
 
     private void handleFailedLogin(User user) {
@@ -142,6 +171,9 @@ public class AuthService {
     }
 
     private String generateToken(Authentication authentication) {
+        AppUserAdapter adapter = (AppUserAdapter) authentication.getPrincipal();
+        User user = adapter.getUser();
+
         var authorities = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(" "));
@@ -152,8 +184,25 @@ public class AuthService {
                 .issuedAt(Instant.now())
                 .expiresAt(Instant.now().plus(30, ChronoUnit.MINUTES))
                 .claim("scope", authorities)
+                .claim("userId", user.getId())
                 .build();
 
         return jwtEncoder.encode(JwtEncoderParameters.from(claimsSet)).getTokenValue();
+    }
+
+    public void logoutUser(Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        String token = jwt.getTokenValue();
+        LocalDateTime expiresAt = LocalDateTime.ofInstant(jwt.getExpiresAt(), ZoneOffset.UTC);
+
+        JwtBlacklist jwtBlacklist = JwtBlacklist.builder()
+                .userId(userId)
+                .reason(JwtBlacklistReason.LOGOUT)
+                .blacklistedAt(LocalDateTime.now())
+                .expiresAt(expiresAt)
+                .token(token)
+                .build();
+
+        jwtBlacklistService.createJwtBlacklist(jwtBlacklist);
     }
 }
