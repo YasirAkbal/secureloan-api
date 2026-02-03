@@ -1,6 +1,5 @@
 package com.yasirakbal.secureloanapi.feature.auth.annotation.implementation;
 
-import com.yasirakbal.secureloanapi.feature.auth.annotation.interfaces.ValidEmail;
 import com.yasirakbal.secureloanapi.feature.auth.annotation.interfaces.ValidPassword;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;

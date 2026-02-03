@@ -8,9 +8,7 @@ import com.yasirakbal.secureloanapi.feature.blacklist.entity.JwtBlacklist;
 import com.yasirakbal.secureloanapi.feature.loan.entity.Loan;
 import com.yasirakbal.secureloanapi.feature.user.enums.UserRole;
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -24,7 +22,11 @@ import java.util.List;
         @Index(name = "idx_users_identity_number", columnList = "identityNumber"),
         @Index(name = "idx_users_username", columnList = "username")
 })
-@Data
+@Getter
+@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class User extends BaseEntity {
     @Column(nullable = false, length = 50, unique = true)
     private String username;
@@ -82,12 +84,15 @@ public class User extends BaseEntity {
     //Security Fields
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean enabled = true;
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean accountLocked = false;
 
     @Column(nullable = false)
+    @Builder.Default
     private Integer failedLoginAttempts = 0;
 
     @Column
@@ -103,5 +108,6 @@ public class User extends BaseEntity {
     private LocalDateTime passwordChangedAt;
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean passwordExpired = false;
 }

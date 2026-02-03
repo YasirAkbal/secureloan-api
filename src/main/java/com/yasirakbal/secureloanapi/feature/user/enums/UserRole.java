@@ -1,5 +1,13 @@
 package com.yasirakbal.secureloanapi.feature.user.enums;
 
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+@Getter
+@AllArgsConstructor
 public enum UserRole {
-    CUSTOMER, CREDIT_OFFICER, ADMIN;
+    CUSTOMER("ROLE_CUSTOMER"), CREDIT_OFFICER("ROLE_CREDIT_OFFICER"), ADMIN("ROLE_ADMIN");
+
+    private final String value;
 }

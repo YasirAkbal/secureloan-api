@@ -19,7 +19,7 @@ public class SecurityConfig {
         return Argon2PasswordEncoder.defaultsForSpringSecurity_v5_8();
     }
 
-    @Bean
+    /*@Bean
     public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
         var user1 = User.withUsername("user1")
                 .password(passwordEncoder.encode("pass1"))
@@ -27,7 +27,7 @@ public class SecurityConfig {
                 .build();
 
         return new InMemoryUserDetailsManager(user1);
-    }
+    }*/
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
