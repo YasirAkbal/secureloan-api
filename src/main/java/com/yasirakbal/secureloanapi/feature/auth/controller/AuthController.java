@@ -37,9 +37,6 @@ public class AuthController {
     private UserRegisterRequestMapper userRegisterRequestMapper;
     private UserRegisterResponseMapper userRegisterResponseMapper;
 
-    private JwtEncoder jwtEncoder;
-    private AuthenticationManager authenticationManager;
-
     @PostMapping("/register")
     public ResponseEntity<UserRegisterResponse> registerUser(@Valid @RequestBody UserRegisterRequest request) {
         User user = userRegisterRequestMapper.map(request);
@@ -56,47 +53,8 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        var authToken = new UsernamePasswordAuthenticationToken(
-                request.getUsername(),
-                request.getPassword()
-        );
+        LoginResponse loginResponse = authService.login(request.getUsername(), request.getPassword());
 
-        var authentication = authenticationManager.authenticate(authToken);
-
-        String token = generateToken(authentication);
-
-        AppUserAdapter adapter = (AppUserAdapter) authentication.getPrincipal();
-        User user = adapter.getUser();
-
-        LoginResponse.LoginUserResponse userResponse = LoginResponse.LoginUserResponse.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .role(user.getRole().getValue())
-                .fullName(user.getFullName())
-                .username(user.getUsername())
-                .build();
-
-        return ResponseEntity.ok(LoginResponse.builder()
-                .accessToken(token)
-                .tokenType("Bearer")
-                .expiresIn(1800)
-                .user(userResponse)
-                .build());
-    }
-
-    private String generateToken(Authentication authentication) {
-        var authorities = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.joining(" "));
-
-        var claimsSet = JwtClaimsSet.builder()
-                .subject(authentication.getName())
-                .issuer("secureloan-api")
-                .issuedAt(Instant.now())
-                .expiresAt(Instant.now().plus(30, ChronoUnit.MINUTES))
-                .claim("scope", authorities)
-                .build();
-
-        return jwtEncoder.encode(JwtEncoderParameters.from(claimsSet)).getTokenValue();
+        return ResponseEntity.ok(loginResponse);
     }
 }
