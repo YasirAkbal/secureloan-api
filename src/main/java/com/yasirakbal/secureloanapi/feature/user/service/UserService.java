@@ -1,5 +1,7 @@
 package com.yasirakbal.secureloanapi.feature.user.service;
 
+import com.yasirakbal.secureloanapi.feature.auth.exception.InvalidCredentialsException;
+import com.yasirakbal.secureloanapi.feature.auth.exception.UserAccountLockedException;
 import com.yasirakbal.secureloanapi.feature.blacklist.entity.JwtBlacklist;
 import com.yasirakbal.secureloanapi.feature.blacklist.enums.JwtBlacklistReason;
 import com.yasirakbal.secureloanapi.feature.blacklist.service.JwtBlacklistService;
@@ -8,10 +10,12 @@ import com.yasirakbal.secureloanapi.feature.user.entity.User;
 import com.yasirakbal.secureloanapi.feature.user.exception.UserNotFoundException;
 import com.yasirakbal.secureloanapi.feature.user.repository.UserRepository;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -19,6 +23,7 @@ import java.time.ZoneOffset;
 
 @Service
 @AllArgsConstructor
+@Slf4j
 public class UserService {
     private UserRepository userRepository;
     private PasswordEncoder passwordEncoder;
@@ -55,6 +60,51 @@ public class UserService {
 
         jwtBlacklistService.createJwtBlacklist(jwtBlacklist);
 
+        userRepository.save(user);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public int handleFailedLogin(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+
+        int attempts = user.getFailedLoginAttempts() + 1;
+        user.setFailedLoginAttempts(attempts);
+
+        if (attempts >= 5) {
+            user.setAccountLocked(true);
+            user.setLockedUntil(LocalDateTime.now().plusMinutes(15));
+            userRepository.save(user);
+
+            throw new UserAccountLockedException(user.getLockedUntil())
+                    .addDetail("reason", "Too many failed login attempts")
+                    .addDetail("maxAttempts", 5);
+        }
+
+        userRepository.save(user);
+        return 5 - attempts;
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void unlockAccountIfExpired(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+
+        if (user.getAccountLocked() && user.getLockedUntil() != null
+                && LocalDateTime.now().isAfter(user.getLockedUntil())) {
+            user.setAccountLocked(false);
+            user.setFailedLoginAttempts(0);
+            user.setLockedUntil(null);
+            userRepository.save(user);
+        }
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markPasswordAsExpired(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+
+        user.setPasswordExpired(true);
         userRepository.save(user);
     }
 }

@@ -1,8 +1,7 @@
 package com.yasirakbal.secureloanapi.feature.auth.service;
 
 import com.yasirakbal.secureloanapi.common.exception.BusinessException;
-import com.yasirakbal.secureloanapi.feature.audit.entity.LoginHistory;
-import com.yasirakbal.secureloanapi.feature.audit.repository.LoginHistoryRepository;
+import com.yasirakbal.secureloanapi.feature.audit.service.LoginHistoryService;
 import com.yasirakbal.secureloanapi.feature.audit.utils.RequestInfoUtils;
 import com.yasirakbal.secureloanapi.feature.auth.adapter.AppUserAdapter;
 import com.yasirakbal.secureloanapi.feature.auth.dto.LoginResponse;
@@ -20,6 +19,7 @@ import com.yasirakbal.secureloanapi.feature.user.exception.IdentityNumberDuplica
 import com.yasirakbal.secureloanapi.feature.user.exception.UserCreationValidationException;
 import com.yasirakbal.secureloanapi.feature.user.exception.UsernameDuplicationException;
 import com.yasirakbal.secureloanapi.feature.user.repository.UserRepository;
+import com.yasirakbal.secureloanapi.feature.user.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -32,6 +32,7 @@ import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -50,7 +51,8 @@ public class AuthService {
     private AuthenticationManager authenticationManager;
     private JwtEncoder jwtEncoder;
     private JwtBlacklistService jwtBlacklistService;
-    private LoginHistoryRepository loginHistoryRepository;
+    private LoginHistoryService loginHistoryService;
+    private UserService userService;
 
     @Transactional
     public User registerUser(User userToCreate) {
@@ -92,10 +94,8 @@ public class AuthService {
         if(user != null) {
             if (user.getAccountLocked()) {
                 if (user.getLockedUntil() != null && LocalDateTime.now().isAfter(user.getLockedUntil())) {
-                    user.setAccountLocked(false);
-                    user.setFailedLoginAttempts(0);
-                    user.setLockedUntil(null);
-                    userRepository.save(user);
+                    userService.unlockAccountIfExpired(user.getId());
+                    user = userRepository.findById(user.getId()).orElseThrow();
                 } else {
                     throw new UserAccountLockedException(user.getLockedUntil());
                 }
@@ -107,8 +107,7 @@ public class AuthService {
 
             boolean isPasswordExpiredRightNow = checkIfPasswordExpired(user);
             if(isPasswordExpiredRightNow) {
-                user.setPasswordExpired(true);
-                userRepository.save(user);
+                userService.markPasswordAsExpired(user.getId());
                 throw new UserPasswordExpiredException();
             }
         }
@@ -122,7 +121,7 @@ public class AuthService {
             var authentication = authenticationManager.authenticate(authToken);
 
             if (user != null) {
-                saveLoginHistory(user, requestInfo, true, null);
+                loginHistoryService.saveSuccessfulLogin(user, requestInfo);
             }
 
             String token = generateToken(authentication);
@@ -148,48 +147,17 @@ public class AuthService {
             throw new UserAccountDisabledException();
         } catch (BadCredentialsException e) {
             if (user != null) {
-                saveLoginHistory(user, requestInfo, false, "Invalid password");
-                handleFailedLogin(user);
+                loginHistoryService.saveFailedLogin(user, requestInfo, "Invalid password");
+                int remainingAttempts = userService.handleFailedLogin(user.getId());
+                throw new InvalidCredentialsException()
+                        .addDetail("remainingAttempts", remainingAttempts);
             } else {
-                saveAnonymousLoginAttempt(username, requestInfo);
+                loginHistoryService.saveAnonymousAttempt(username, requestInfo); //ip based brute force protection yazılabilir
+                throw new InvalidCredentialsException();
             }
-            throw new InvalidCredentialsException();
         }
     }
 
-    private void saveLoginHistory(User user, RequestInfoUtils.RequestInfo requestInfo,
-                                  boolean success, String failureReason) {
-        LoginHistory history = LoginHistory.builder()
-                .user(user)
-                .ipAddress(requestInfo.getIpAddress())
-                .userAgent(requestInfo.getUserAgent())
-                .browser(requestInfo.getBrowser())
-                .os(requestInfo.getOs())
-                .device(requestInfo.getDevice())
-                .success(success)
-                .failureReason(failureReason)
-                .timestamp(LocalDateTime.now())
-                .build();
-
-        loginHistoryRepository.save(history);
-    }
-
-    private void saveAnonymousLoginAttempt(String username, RequestInfoUtils.RequestInfo requestInfo) {
-        LoginHistory history = LoginHistory.builder()
-                .user(null)
-                .attemptedUsername(username)
-                .ipAddress(requestInfo.getIpAddress())
-                .userAgent(requestInfo.getUserAgent())
-                .browser(requestInfo.getBrowser())
-                .os(requestInfo.getOs())
-                .device(requestInfo.getDevice())
-                .success(false)
-                .failureReason("User not found")
-                .timestamp(LocalDateTime.now())
-                .build();
-
-        loginHistoryRepository.save(history);
-    }
 
     private boolean checkIfPasswordExpired(User user) {
         LocalDateTime passwordChangedAt = user.getPasswordChangedAt();
@@ -199,26 +167,6 @@ public class AuthService {
                 && ChronoUnit.DAYS.between(passwordChangedAt, currentTime) >= 90
                 || passwordChangedAt == null
                 && ChronoUnit.DAYS.between(user.getCreatedAt(), currentTime) >= 90;
-    }
-
-    private void handleFailedLogin(User user) {
-        int attempts = user.getFailedLoginAttempts() + 1;
-        user.setFailedLoginAttempts(attempts);
-
-        if (attempts >= 5) {
-            user.setAccountLocked(true);
-            user.setLockedUntil(LocalDateTime.now().plusHours(1));
-            userRepository.save(user);
-
-            throw new UserAccountLockedException(user.getLockedUntil())
-                    .addDetail("reason", "Too many failed login attempts")
-                    .addDetail("maxAttempts", 5);
-        }
-
-        userRepository.save(user);
-
-        throw new InvalidCredentialsException()
-                .addDetail("remainingAttempts", 5 - attempts);
     }
 
     private String generateToken(Authentication authentication) {

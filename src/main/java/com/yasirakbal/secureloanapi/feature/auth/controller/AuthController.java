@@ -1,6 +1,5 @@
 package com.yasirakbal.secureloanapi.feature.auth.controller;
 
-import com.yasirakbal.secureloanapi.feature.auth.adapter.AppUserAdapter;
 import com.yasirakbal.secureloanapi.feature.auth.dto.LoginRequest;
 import com.yasirakbal.secureloanapi.feature.auth.dto.LoginResponse;
 import com.yasirakbal.secureloanapi.feature.auth.dto.UserRegisterRequest;
