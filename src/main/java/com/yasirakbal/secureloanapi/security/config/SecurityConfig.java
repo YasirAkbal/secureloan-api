@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.CredentialsExpiredException;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
@@ -91,6 +92,13 @@ public class SecurityConfig {
     public AuthenticationManager authenticationManager(PasswordEncoder passwordEncoder, CustomUserDetailsService customUserDetailsService) {
         var authenticationProvider = new DaoAuthenticationProvider(customUserDetailsService);
         authenticationProvider.setPasswordEncoder(passwordEncoder);
+
+        authenticationProvider.setPostAuthenticationChecks(userDetails -> {
+            if (!userDetails.isCredentialsNonExpired()) {
+                throw new CredentialsExpiredException("Password expired");
+            }
+        });
+
         return new ProviderManager(authenticationProvider);
     }
 }

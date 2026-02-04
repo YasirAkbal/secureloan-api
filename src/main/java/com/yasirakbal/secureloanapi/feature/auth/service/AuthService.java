@@ -88,37 +88,12 @@ public class AuthService {
     public LoginResponse login(String username, String password, HttpServletRequest httpRequest) {
         RequestInfoUtils.RequestInfo requestInfo = RequestInfoUtils.extract(httpRequest);
 
-        User user = userRepository.findUserByUsername(username)
-                .orElse(null);
-
-        if(user != null) {
-            if (user.getAccountLocked()) {
-                if (user.getLockedUntil() != null && LocalDateTime.now().isAfter(user.getLockedUntil())) {
-                    userService.unlockAccountIfExpired(user.getId());
-                    user = userRepository.findById(user.getId()).orElseThrow();
-                } else {
-                    throw new UserAccountLockedException(user.getLockedUntil());
-                }
-            }
-
-            if(user.getPasswordExpired()) {
-                throw new UserPasswordExpiredException();
-            }
-
-            boolean isPasswordExpiredRightNow = checkIfPasswordExpired(user);
-            if(isPasswordExpiredRightNow) {
-                userService.markPasswordAsExpired(user.getId());
-                throw new UserPasswordExpiredException();
-            }
-        }
-
         try {
-            var authToken = new UsernamePasswordAuthenticationToken(
-                    username,
-                    password
-            );
-
+            var authToken = new UsernamePasswordAuthenticationToken(username, password);
             var authentication = authenticationManager.authenticate(authToken);
+
+            AppUserAdapter userAdapter = (AppUserAdapter) authentication.getPrincipal();
+            User user = userAdapter.getUser();
 
             loginHistoryService.saveSuccessfulLogin(user, requestInfo);
 
@@ -140,28 +115,31 @@ public class AuthService {
                     .build();
 
         } catch (LockedException e) {
-            throw new UserAccountLockedException("Account is temporarily locked");
+            User user = userRepository.findUserByUsername(username).orElse(null);
+            loginHistoryService.saveFailedLogin(user, requestInfo, "Account locked");
+            throw new UserAccountLockedException(user.getLockedUntil());
+
         } catch (DisabledException e) {
+            User user = userRepository.findUserByUsername(username).orElse(null);
+            loginHistoryService.saveFailedLogin(user, requestInfo, "Account disabled");
             throw new UserAccountDisabledException();
+
+        } catch (CredentialsExpiredException e) {
+            User user = userRepository.findUserByUsername(username).orElse(null);
+            loginHistoryService.saveFailedLogin(user, requestInfo, "Password expired");
+            userService.markPasswordAsExpired(user.getId());
+            throw new UserPasswordExpiredException();
+
         } catch (BadCredentialsException e) {
+            User user = userRepository.findUserByUsername(username).orElse(null);
             if (user != null) {
                 loginHistoryService.saveFailedLogin(user, requestInfo, "Invalid password");
                 throw userService.handleFailedLogin(user.getId());
             } else {
-                loginHistoryService.saveAnonymousAttempt(username, requestInfo); //ip based brute force protection yazılabilir
+                loginHistoryService.saveAnonymousAttempt(username, requestInfo);
                 throw new InvalidCredentialsException();
             }
         }
-    }
-
-    private boolean checkIfPasswordExpired(User user) {
-        LocalDateTime passwordChangedAt = user.getPasswordChangedAt();
-        LocalDateTime currentTime = LocalDateTime.now();
-
-        return passwordChangedAt != null
-                && ChronoUnit.DAYS.between(passwordChangedAt, currentTime) >= 90
-                || passwordChangedAt == null
-                && ChronoUnit.DAYS.between(user.getCreatedAt(), currentTime) >= 90;
     }
 
     private String generateToken(Authentication authentication) {

@@ -101,18 +101,15 @@ public class UserService {
                 .addDetail("remainingAttempts", 5 - attempts);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void unlockAccountIfExpired(Long userId) {
+    @Transactional
+    public void unlockAccount(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
-        if (user.getAccountLocked() && user.getLockedUntil() != null
-                && LocalDateTime.now().isAfter(user.getLockedUntil())) {
-            user.setAccountLocked(false);
-            user.setFailedLoginAttempts(0);
-            user.setLockedUntil(null);
-            userRepository.save(user);
-        }
+        user.setAccountLocked(false);
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        userRepository.save(user);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

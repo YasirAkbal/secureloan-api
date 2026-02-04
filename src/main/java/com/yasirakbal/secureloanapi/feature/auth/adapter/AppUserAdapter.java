@@ -8,6 +8,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.List;
 
@@ -43,12 +45,17 @@ public class AppUserAdapter implements UserDetails {
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return !user.getPasswordExpired();
+        if (user.getPasswordExpired()) return false;
+
+        LocalDateTime reference = user.getPasswordChangedAt() != null
+                ? user.getPasswordChangedAt()
+                : user.getCreatedAt();
+
+        return ChronoUnit.DAYS.between(reference, LocalDateTime.now()) < 90;
     }
 
     @Override
     public boolean isEnabled() {
         return user.getEnabled();
     }
-
 }
