@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class JwtBlacklist extends BaseEntity {
-    @Column(length = 500, nullable = false, unique = true)
+    @Column(length = 750, nullable = false, unique = true)
     private String token;
 
     @Column(name = "user_id", nullable = false)

@@ -79,8 +79,6 @@ public class User extends BaseEntity {
     @OneToMany(mappedBy = "user")
     private List<SecurityAuditLog> auditLogs = new ArrayList<>();
 
-    @OneToMany(mappedBy = "user")
-    private List<JwtBlacklist> jwtBlacklists = new ArrayList<>();
 
     //Security Fields
 
