@@ -37,11 +37,22 @@ public class UserService {
         return user;
     }
 
+    public User getUserById(long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+
+        return user;
+    }
+
     @Transactional
     public void changePassword(ChangePasswordRequest request, Jwt jwt) {
         Long userId = jwt.getClaim("userId");
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
+
+        if(!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new InvalidCredentialsException("The given password is incorrect.");
+        }
 
         String hashedPassword = passwordEncoder.encode(request.getPassword());
         user.setPassword(hashedPassword);

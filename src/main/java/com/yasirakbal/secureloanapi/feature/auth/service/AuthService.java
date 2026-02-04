@@ -138,6 +138,7 @@ public class AuthService {
                     .expiresIn(1800)
                     .user(userResponse)
                     .build();
+
         } catch (LockedException e) {
             throw new UserAccountLockedException("Account is temporarily locked");
         } catch (DisabledException e) {
