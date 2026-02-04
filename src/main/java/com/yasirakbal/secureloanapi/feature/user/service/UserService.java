@@ -1,5 +1,6 @@
 package com.yasirakbal.secureloanapi.feature.user.service;
 
+import com.yasirakbal.secureloanapi.common.exception.NonRollbackBusinessException;
 import com.yasirakbal.secureloanapi.feature.auth.exception.InvalidCredentialsException;
 import com.yasirakbal.secureloanapi.feature.auth.exception.UserAccountLockedException;
 import com.yasirakbal.secureloanapi.feature.blacklist.entity.JwtBlacklist;
@@ -63,8 +64,11 @@ public class UserService {
         userRepository.save(user);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public int handleFailedLogin(Long userId) {
+    @Transactional(
+            propagation = Propagation.REQUIRES_NEW,
+            noRollbackFor = NonRollbackBusinessException.class
+    )
+    public RuntimeException handleFailedLogin(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
@@ -76,13 +80,14 @@ public class UserService {
             user.setLockedUntil(LocalDateTime.now().plusMinutes(15));
             userRepository.save(user);
 
-            throw new UserAccountLockedException(user.getLockedUntil())
+            return new UserAccountLockedException(user.getLockedUntil())
                     .addDetail("reason", "Too many failed login attempts")
                     .addDetail("maxAttempts", 5);
         }
 
         userRepository.save(user);
-        return 5 - attempts;
+        return new InvalidCredentialsException()
+                .addDetail("remainingAttempts", 5 - attempts);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

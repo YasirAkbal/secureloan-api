@@ -1,12 +1,13 @@
 package com.yasirakbal.secureloanapi.feature.auth.exception;
 
 import com.yasirakbal.secureloanapi.common.exception.BusinessException;
+import com.yasirakbal.secureloanapi.common.exception.NonRollbackBusinessException;
 import org.springframework.http.HttpStatus;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 
-public class UserAccountLockedException extends BusinessException {
+public class UserAccountLockedException extends NonRollbackBusinessException {
     public UserAccountLockedException(String message) {
         super(message, HttpStatus.FORBIDDEN);
     }

@@ -120,9 +120,7 @@ public class AuthService {
 
             var authentication = authenticationManager.authenticate(authToken);
 
-            if (user != null) {
-                loginHistoryService.saveSuccessfulLogin(user, requestInfo);
-            }
+            loginHistoryService.saveSuccessfulLogin(user, requestInfo);
 
             String token = generateToken(authentication);
 
@@ -140,7 +138,6 @@ public class AuthService {
                     .expiresIn(1800)
                     .user(userResponse)
                     .build();
-
         } catch (LockedException e) {
             throw new UserAccountLockedException("Account is temporarily locked");
         } catch (DisabledException e) {
@@ -148,16 +145,13 @@ public class AuthService {
         } catch (BadCredentialsException e) {
             if (user != null) {
                 loginHistoryService.saveFailedLogin(user, requestInfo, "Invalid password");
-                int remainingAttempts = userService.handleFailedLogin(user.getId());
-                throw new InvalidCredentialsException()
-                        .addDetail("remainingAttempts", remainingAttempts);
+                throw userService.handleFailedLogin(user.getId());
             } else {
                 loginHistoryService.saveAnonymousAttempt(username, requestInfo); //ip based brute force protection yazılabilir
                 throw new InvalidCredentialsException();
             }
         }
     }
-
 
     private boolean checkIfPasswordExpired(User user) {
         LocalDateTime passwordChangedAt = user.getPasswordChangedAt();
