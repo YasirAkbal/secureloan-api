@@ -9,6 +9,7 @@ import com.yasirakbal.secureloanapi.feature.auth.mapper.UserRegisterRequestMappe
 import com.yasirakbal.secureloanapi.feature.auth.mapper.UserRegisterResponseMapper;
 import com.yasirakbal.secureloanapi.feature.auth.service.AuthService;
 import com.yasirakbal.secureloanapi.feature.user.entity.User;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -44,8 +45,8 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        LoginResponse loginResponse = authService.login(request.getUsername(), request.getPassword());
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+        LoginResponse loginResponse = authService.login(request.getUsername(), request.getPassword(), httpRequest);
 
         return ResponseEntity.ok(loginResponse);
     }

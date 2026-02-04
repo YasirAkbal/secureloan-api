@@ -19,9 +19,12 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class LoginHistory extends BaseEntity {
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
+
+    @Column(length = 100)
+    private String attemptedUsername;
 
     @Column(length = 50)
     private String ipAddress;
@@ -30,10 +33,13 @@ public class LoginHistory extends BaseEntity {
     private String userAgent;
 
     @Column(length = 50)
-    private String device;
+    private String browser;
 
-    @Column(length = 100)
-    private String location;
+    @Column(length = 50)
+    private String os;
+
+    @Column(length = 50)
+    private String device;
 
     @Column(nullable = false)
     private Boolean success;

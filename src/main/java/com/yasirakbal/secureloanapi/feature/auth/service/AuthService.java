@@ -1,6 +1,9 @@
 package com.yasirakbal.secureloanapi.feature.auth.service;
 
 import com.yasirakbal.secureloanapi.common.exception.BusinessException;
+import com.yasirakbal.secureloanapi.feature.audit.entity.LoginHistory;
+import com.yasirakbal.secureloanapi.feature.audit.repository.LoginHistoryRepository;
+import com.yasirakbal.secureloanapi.feature.audit.utils.RequestInfoUtils;
 import com.yasirakbal.secureloanapi.feature.auth.adapter.AppUserAdapter;
 import com.yasirakbal.secureloanapi.feature.auth.dto.LoginResponse;
 import com.yasirakbal.secureloanapi.feature.auth.exception.InvalidCredentialsException;
@@ -17,6 +20,7 @@ import com.yasirakbal.secureloanapi.feature.user.exception.IdentityNumberDuplica
 import com.yasirakbal.secureloanapi.feature.user.exception.UserCreationValidationException;
 import com.yasirakbal.secureloanapi.feature.user.exception.UsernameDuplicationException;
 import com.yasirakbal.secureloanapi.feature.user.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.*;
@@ -46,6 +50,7 @@ public class AuthService {
     private AuthenticationManager authenticationManager;
     private JwtEncoder jwtEncoder;
     private JwtBlacklistService jwtBlacklistService;
+    private LoginHistoryRepository loginHistoryRepository;
 
     @Transactional
     public User registerUser(User userToCreate) {
@@ -78,32 +83,35 @@ public class AuthService {
     }
 
     @Transactional
-    public LoginResponse login(String username, String password) {
-        User user = userRepository.findUserByUsername(username)
-                .orElseThrow(InvalidCredentialsException::new);
+    public LoginResponse login(String username, String password, HttpServletRequest httpRequest) {
+        RequestInfoUtils.RequestInfo requestInfo = RequestInfoUtils.extract(httpRequest);
 
-        if (user.getAccountLocked()) {
-            if (user.getLockedUntil() != null && LocalDateTime.now().isAfter(user.getLockedUntil())) {
-                user.setAccountLocked(false);
-                user.setFailedLoginAttempts(0);
-                user.setLockedUntil(null);
+        User user = userRepository.findUserByUsername(username)
+                .orElse(null);
+
+        if(user != null) {
+            if (user.getAccountLocked()) {
+                if (user.getLockedUntil() != null && LocalDateTime.now().isAfter(user.getLockedUntil())) {
+                    user.setAccountLocked(false);
+                    user.setFailedLoginAttempts(0);
+                    user.setLockedUntil(null);
+                    userRepository.save(user);
+                } else {
+                    throw new UserAccountLockedException(user.getLockedUntil());
+                }
+            }
+
+            if(user.getPasswordExpired()) {
+                throw new UserPasswordExpiredException();
+            }
+
+            boolean isPasswordExpiredRightNow = checkIfPasswordExpired(user);
+            if(isPasswordExpiredRightNow) {
+                user.setPasswordExpired(true);
                 userRepository.save(user);
-            } else {
-                throw new UserAccountLockedException(user.getLockedUntil());
+                throw new UserPasswordExpiredException();
             }
         }
-
-        if(user.getPasswordExpired()) {
-            throw new UserPasswordExpiredException();
-        }
-
-        boolean isPasswordExpiredRightNow = checkIfPasswordExpired(user);
-        if(isPasswordExpiredRightNow) {
-            user.setPasswordExpired(true);
-            userRepository.save(user);
-            throw new UserPasswordExpiredException();
-        }
-
 
         try {
             var authToken = new UsernamePasswordAuthenticationToken(
@@ -112,6 +120,10 @@ public class AuthService {
             );
 
             var authentication = authenticationManager.authenticate(authToken);
+
+            if (user != null) {
+                saveLoginHistory(user, requestInfo, true, null);
+            }
 
             String token = generateToken(authentication);
 
@@ -135,9 +147,48 @@ public class AuthService {
         } catch (DisabledException e) {
             throw new UserAccountDisabledException();
         } catch (BadCredentialsException e) {
-            handleFailedLogin(user);
+            if (user != null) {
+                saveLoginHistory(user, requestInfo, false, "Invalid password");
+                handleFailedLogin(user);
+            } else {
+                saveAnonymousLoginAttempt(username, requestInfo);
+            }
             throw new InvalidCredentialsException();
         }
+    }
+
+    private void saveLoginHistory(User user, RequestInfoUtils.RequestInfo requestInfo,
+                                  boolean success, String failureReason) {
+        LoginHistory history = LoginHistory.builder()
+                .user(user)
+                .ipAddress(requestInfo.getIpAddress())
+                .userAgent(requestInfo.getUserAgent())
+                .browser(requestInfo.getBrowser())
+                .os(requestInfo.getOs())
+                .device(requestInfo.getDevice())
+                .success(success)
+                .failureReason(failureReason)
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        loginHistoryRepository.save(history);
+    }
+
+    private void saveAnonymousLoginAttempt(String username, RequestInfoUtils.RequestInfo requestInfo) {
+        LoginHistory history = LoginHistory.builder()
+                .user(null)
+                .attemptedUsername(username)
+                .ipAddress(requestInfo.getIpAddress())
+                .userAgent(requestInfo.getUserAgent())
+                .browser(requestInfo.getBrowser())
+                .os(requestInfo.getOs())
+                .device(requestInfo.getDevice())
+                .success(false)
+                .failureReason("User not found")
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        loginHistoryRepository.save(history);
     }
 
     private boolean checkIfPasswordExpired(User user) {
