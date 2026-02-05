@@ -1,7 +1,13 @@
 package com.yasirakbal.secureloanapi.feature.application.repository;
 
 import com.yasirakbal.secureloanapi.feature.application.entity.LoanApplication;
+import com.yasirakbal.secureloanapi.feature.application.enums.LoanApplicationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
+
 public interface LoanApplicationRepository extends JpaRepository<LoanApplication, Long> {
+    List<LoanApplication> findByCustomerIdAndStatus(Long customerId, LoanApplicationStatus status);
+    List<LoanApplication> findByCustomerId(Long customerId);
+
 }

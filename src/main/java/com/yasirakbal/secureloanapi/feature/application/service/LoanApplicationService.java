@@ -157,5 +157,10 @@ public class LoanApplicationService {
         return numerator.divide(denominator, 2, RoundingMode.HALF_UP);
     }
 
+    public List<LoanApplication> getCustomersApplications(Long customerId, LoanApplicationStatus status) {
+        return status == null
+                ? loanApplicationRepository.findByCustomerId(customerId)
+                : loanApplicationRepository.findByCustomerIdAndStatus(customerId, status);
+    }
 
 }

@@ -50,7 +50,7 @@ public class LoanApplication extends BaseEntity {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal totalPayment;
 
-    @Column(nullable = false, precision = 5, scale = 2)
+    @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal dtiRatio;
 
     //Evaluation
