@@ -1,8 +1,11 @@
 package com.yasirakbal.secureloanapi.feature.application.service;
 
 import com.yasirakbal.secureloanapi.common.exception.BusinessException;
+import com.yasirakbal.secureloanapi.common.exception.ResourceNotFoundException;
 import com.yasirakbal.secureloanapi.common.utils.DateUtils;
 import com.yasirakbal.secureloanapi.feature.application.dto.CreateLoanApplicationRequest;
+import com.yasirakbal.secureloanapi.feature.application.entity.LoanApplication;
+import com.yasirakbal.secureloanapi.feature.application.enums.LoanApplicationStatus;
 import com.yasirakbal.secureloanapi.feature.application.exception.CustomerAgeRequestedTermNotEligibleException;
 import com.yasirakbal.secureloanapi.feature.application.exception.DtiNotEligibleException;
 import com.yasirakbal.secureloanapi.feature.application.exception.MonthlyIncomeNotEnoughException;
@@ -13,12 +16,14 @@ import com.yasirakbal.secureloanapi.feature.loan.enums.LoanType;
 import com.yasirakbal.secureloanapi.feature.loan.repository.LoanRepository;
 import com.yasirakbal.secureloanapi.feature.user.entity.User;
 import com.yasirakbal.secureloanapi.feature.user.service.UserService;
+import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,42 +34,89 @@ public class LoanApplicationService {
     private LoanApplicationRepository loanApplicationRepository;
     private LoanRepository loanRepository;
     private UserService userService;
+    private EntityManager entityManager;
 
-    public Loan createApplication(CreateLoanApplicationRequest request, Long customerId) {
+    public LoanApplication createApplication(CreateLoanApplicationRequest request, Long customerId) {
         User customer = userService.getUserById(customerId);
         LoanType requestedLoanType = request.getLoanType();
+        BigDecimal requestedAmount = request.getRequestedAmount();
+        String purpose = request.getPurpose();
+        int requestedTerm = request.getRequestedTerm();
+        BigDecimal interestRate = requestedLoanType.getMonthlyInterestRate();
+
         List<BusinessException> creationErrors = new ArrayList<>();
 
         if(!requestedLoanType.checkIfItsEligible(customer.getMonthlyIncome())) {
             creationErrors.add(new MonthlyIncomeNotEnoughException());
         }
 
-        LocalDate dateWhenCreditWillBeFinished = LocalDate.now().plusMonths(request.getRequestedTerm());
+        LocalDate dateWhenCreditWillBeFinished = LocalDate.now().plusMonths(requestedTerm);
         int customerAgeAfterCreditFinished = Period.between(customer.getBirthDate(), dateWhenCreditWillBeFinished).getYears();
         if(customerAgeAfterCreditFinished > 65) {
             creationErrors.add(new CustomerAgeRequestedTermNotEligibleException(65, customerAgeAfterCreditFinished));
         }
 
-        if(!checkDTI(customerId, customer.getMonthlyIncome(),
-                request.getRequestedAmount(), request.getRequestedTerm()))
+        BigDecimal dti = getDti(customerId, customer.getMonthlyIncome(),
+                requestedAmount, requestedTerm);
+        if(dti.compareTo(BigDecimal.valueOf(40)) > 0)
         {
-            creationErrors.add(new DtiNotEligibleException());
+            creationErrors.add(new DtiNotEligibleException(BigDecimal.valueOf(40), dti));
         }
 
-        if(!creationErrors.isEmpty()) {
-            //rejection case
-            return null;
-        }
-
-        BigDecimal monthlyInstallment = calculateMonthlyInstallment(request.getRequestedAmount(),
+        BigDecimal monthlyInstallment = calculateMonthlyInstallment(requestedAmount,
                 request.getLoanType().getMonthlyInterestRate(), request.getRequestedTerm());
+        BigDecimal totalPayment = monthlyInstallment.multiply(BigDecimal.valueOf(requestedTerm));
+
+        if(!creationErrors.isEmpty()) { //rejection
+            var rejectedLoanApp = buildForRejectedCase(customerId, requestedLoanType, requestedAmount,
+                    requestedTerm, purpose, monthlyInstallment, interestRate, totalPayment, dti, creationErrors);
+
+            loanApplicationRepository.save(rejectedLoanApp);
+            return rejectedLoanApp;
+        }
 
 
-        return null;
+        var pendingLoanApp = buildForPendingCase(customerId, requestedLoanType, requestedAmount,
+                requestedTerm, purpose, monthlyInstallment, interestRate, totalPayment, dti);
+        loanApplicationRepository.save(pendingLoanApp);
+
+        return pendingLoanApp;
+    }
+
+    private LoanApplication buildForRejectedCase(Long customerId, LoanType requestedLoanType, BigDecimal requestedAmount,
+                                                 int requestedTerm, String purpose, BigDecimal monthlyInstallment,
+                                                 BigDecimal interestRate, BigDecimal totalPayment, BigDecimal dti, List<BusinessException> creationErrors) {
+        return build(customerId, requestedLoanType, requestedAmount, requestedTerm, purpose, monthlyInstallment, interestRate, totalPayment, dti, creationErrors, LoanApplicationStatus.AUTO_REJECTED);
+    }
+
+    private LoanApplication buildForPendingCase(Long customerId, LoanType requestedLoanType, BigDecimal requestedAmount, int requestedTerm, String purpose, BigDecimal monthlyInstallment, BigDecimal interestRate, BigDecimal totalPayment, BigDecimal dti) {
+        return build(customerId, requestedLoanType, requestedAmount, requestedTerm, purpose, monthlyInstallment, interestRate, totalPayment, dti, null, LoanApplicationStatus.PENDING);
+    }
+
+    private LoanApplication build(Long customerId, LoanType requestedLoanType, BigDecimal requestedAmount, int requestedTerm,
+                                  String purpose, BigDecimal monthlyInstallment, BigDecimal interestRate,
+                                  BigDecimal totalPayment, BigDecimal dti, List<BusinessException> creationErrors, LoanApplicationStatus status) {
+        User customerRef = entityManager.getReference(User.class, customerId);
+
+        var rejectedLoanApp = LoanApplication.builder()
+                .customer(customerRef)
+                .loanType(requestedLoanType)
+                .requestedAmount(requestedAmount)
+                .requestedTerm(requestedTerm)
+                .purpose(purpose)
+                .monthlyInstallment(monthlyInstallment)
+                .interestRate(interestRate)
+                .totalPayment(totalPayment)
+                .dtiRatio(dti)
+                .status(status)
+                .evaluatedAt(LocalDateTime.now())
+                .rejectionReasons(creationErrors == null ? null : String.join("; ", creationErrors.stream().map(Throwable::getMessage).toList()))
+                .build();
+        return rejectedLoanApp;
     }
 
 
-    public boolean checkDTI(Long customerId, BigDecimal monthlyIncome,
+    public BigDecimal getDti(Long customerId, BigDecimal monthlyIncome,
                             BigDecimal newLoanAmount, Integer installmentCount) {
 
         BigDecimal newMonthlyInstallment = newLoanAmount
@@ -76,7 +128,7 @@ public class LoanApplicationService {
                 .divide(monthlyIncome, 4, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100));
 
-        return dti.compareTo(BigDecimal.valueOf(40)) <= 0;
+        return dti;
     }
 
     public BigDecimal calculateMaxMonthlyPayment(
@@ -104,4 +156,6 @@ public class LoanApplicationService {
 
         return numerator.divide(denominator, 2, RoundingMode.HALF_UP);
     }
+
+
 }

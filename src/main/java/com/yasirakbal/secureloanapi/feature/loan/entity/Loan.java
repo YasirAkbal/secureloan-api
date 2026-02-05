@@ -25,9 +25,8 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class Loan extends BaseEntity {
-    @OneToOne
-    @JoinColumn(name = "application_id", nullable = false, unique = true)
-    private LoanApplication application;
+    @Column(nullable = false)
+    private Long applicationId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = false)

@@ -66,15 +66,6 @@ public class LoanApplication extends BaseEntity {
     private LocalDateTime evaluatedAt;
 
     @Column
-    private String rejectionReason;
+    private String rejectionReasons;
 
-    @Column(nullable = false, precision = 5, scale = 2)
-    private BigDecimal approvedAmount;
-
-    @Column
-    private Integer approvedTerm;
-
-    //Relations
-    @OneToOne(mappedBy = "application")
-    private Loan loan;
 }

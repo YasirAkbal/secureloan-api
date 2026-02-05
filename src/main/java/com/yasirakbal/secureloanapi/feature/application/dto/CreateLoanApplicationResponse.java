@@ -1,11 +1,13 @@
 package com.yasirakbal.secureloanapi.feature.application.dto;
 
+import com.yasirakbal.secureloanapi.feature.application.enums.LoanApplicationStatus;
 import com.yasirakbal.secureloanapi.feature.loan.enums.LoanStatusType;
 import com.yasirakbal.secureloanapi.feature.loan.enums.LoanType;
 import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class CreateLoanApplicationResponse {
@@ -17,6 +19,7 @@ public class CreateLoanApplicationResponse {
     private BigDecimal interestRate;
     private BigDecimal totalPayment;
     private BigDecimal dtiRatio;
-    private LoanStatusType status;
+    private LoanApplicationStatus status;
+    private List<String> rejectionReasons;
     private LocalDateTime createdAt;
 }

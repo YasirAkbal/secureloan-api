@@ -26,7 +26,7 @@ public class DataInitializer implements CommandLineRunner {
 
         List<User> users = List.of(
                 createUser("johndoe", "Pass123!", "john@example.com", "John Doe",
-                        "12345678901", "+905551234567", LocalDate.of(1990, 5, 15),
+                        "12345678901", "+905551234567", LocalDate.of(1965, 5, 15),
                         new BigDecimal("25000.00"), 720, UserRole.CUSTOMER),
 
                 createUser("janedoe", "Pass123!", "jane@example.com", "Jane Doe",

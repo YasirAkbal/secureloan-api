@@ -2,6 +2,7 @@ package com.yasirakbal.secureloanapi.feature.application.controller;
 
 import com.yasirakbal.secureloanapi.feature.application.dto.CreateLoanApplicationRequest;
 import com.yasirakbal.secureloanapi.feature.application.dto.CreateLoanApplicationResponse;
+import com.yasirakbal.secureloanapi.feature.application.entity.LoanApplication;
 import com.yasirakbal.secureloanapi.feature.application.mapper.CreateLoanAppResponseMapper;
 import com.yasirakbal.secureloanapi.feature.application.service.LoanApplicationService;
 import com.yasirakbal.secureloanapi.feature.loan.entity.Loan;
@@ -29,10 +30,10 @@ public class LoanApplicationController {
     @PostMapping
     public ResponseEntity<CreateLoanApplicationResponse> createLoanApplication(@RequestBody @Valid CreateLoanApplicationRequest request,
                                                                                @AuthenticationPrincipal Jwt jwt) {
-        Loan createdLoan = loanApplicationService.createApplication(request, jwt.getClaim("userId"));
+        LoanApplication createdLoan = loanApplicationService.createApplication(request, jwt.getClaim("userId"));
 
         CreateLoanApplicationResponse response = createLoanAppResponseMapper.map(createdLoan);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 }
