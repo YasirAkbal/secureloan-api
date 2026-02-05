@@ -44,7 +44,7 @@ public class LoanApplication extends BaseEntity {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal monthlyInstallment;
 
-    @Column(nullable = false, precision = 5, scale = 2)
+    @Column(nullable = false, precision = 4, scale = 4)
     private BigDecimal interestRate;
 
     @Column(nullable = false, precision = 12, scale = 2)
