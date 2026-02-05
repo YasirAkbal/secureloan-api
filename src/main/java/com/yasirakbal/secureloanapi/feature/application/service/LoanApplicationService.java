@@ -8,6 +8,7 @@ import com.yasirakbal.secureloanapi.feature.application.entity.LoanApplication;
 import com.yasirakbal.secureloanapi.feature.application.enums.LoanApplicationStatus;
 import com.yasirakbal.secureloanapi.feature.application.exception.CustomerAgeRequestedTermNotEligibleException;
 import com.yasirakbal.secureloanapi.feature.application.exception.DtiNotEligibleException;
+import com.yasirakbal.secureloanapi.feature.application.exception.LoanApplicationCannotBeDeletedException;
 import com.yasirakbal.secureloanapi.feature.application.exception.MonthlyIncomeNotEnoughException;
 import com.yasirakbal.secureloanapi.feature.application.repository.LoanApplicationRepository;
 import com.yasirakbal.secureloanapi.feature.loan.entity.Loan;
@@ -19,6 +20,7 @@ import com.yasirakbal.secureloanapi.feature.user.service.UserService;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -163,4 +165,21 @@ public class LoanApplicationService {
                 : loanApplicationRepository.findByCustomerIdAndStatus(customerId, status);
     }
 
+    public LoanApplication getLoanApplicationById(Long id) {
+        return loanApplicationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("LoanApplication", id));
+    }
+
+    @Transactional
+    public void deleteLoanApplication(Long id) {
+        LoanApplication loanApplication = loanApplicationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("LoanApplication", id));
+
+        if(!loanApplication.getStatus().equals(LoanApplicationStatus.PENDING)) {
+            throw new LoanApplicationCannotBeDeletedException();
+        }
+
+        loanApplication.setStatus(LoanApplicationStatus.CANCELLED);
+        loanApplicationRepository.save(loanApplication);
+    }
 }

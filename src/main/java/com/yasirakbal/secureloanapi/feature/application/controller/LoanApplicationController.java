@@ -12,10 +12,13 @@ import com.yasirakbal.secureloanapi.feature.loan.entity.Loan;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Null;
+import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
@@ -53,5 +56,20 @@ public class LoanApplicationController {
                 .toList();
 
         return ResponseEntity.ok(responses);
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("@securityService.canAccessApplication(#id, #authentication)")
+    public ResponseEntity<GetCustomersApplicationsResponse> getApplication(@PathVariable @Positive Long id, Authentication authentication) {
+        LoanApplication loanApplication =  loanApplicationService.getLoanApplicationById(id);
+        GetCustomersApplicationsResponse response = getCustomersApplicationsResponseMapper.map(loanApplication);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("@securityService.canDeleteApplication(#id, #authentication)")
+    public ResponseEntity<Void> deleteApplication(@PathVariable @Positive Long id, Authentication authentication) {
+        loanApplicationService.deleteLoanApplication(id);
+        return ResponseEntity.noContent().build();
     }
 }
