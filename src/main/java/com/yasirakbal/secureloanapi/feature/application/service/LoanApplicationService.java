@@ -6,11 +6,9 @@ import com.yasirakbal.secureloanapi.common.utils.DateUtils;
 import com.yasirakbal.secureloanapi.feature.application.dto.CreateLoanApplicationRequest;
 import com.yasirakbal.secureloanapi.feature.application.entity.LoanApplication;
 import com.yasirakbal.secureloanapi.feature.application.enums.LoanApplicationStatus;
-import com.yasirakbal.secureloanapi.feature.application.exception.CustomerAgeRequestedTermNotEligibleException;
-import com.yasirakbal.secureloanapi.feature.application.exception.DtiNotEligibleException;
-import com.yasirakbal.secureloanapi.feature.application.exception.LoanApplicationCannotBeDeletedException;
-import com.yasirakbal.secureloanapi.feature.application.exception.MonthlyIncomeNotEnoughException;
+import com.yasirakbal.secureloanapi.feature.application.exception.*;
 import com.yasirakbal.secureloanapi.feature.application.repository.LoanApplicationRepository;
+import com.yasirakbal.secureloanapi.feature.installment.service.InstallmentService;
 import com.yasirakbal.secureloanapi.feature.loan.entity.Loan;
 import com.yasirakbal.secureloanapi.feature.loan.enums.LoanStatusType;
 import com.yasirakbal.secureloanapi.feature.loan.enums.LoanType;
@@ -19,6 +17,10 @@ import com.yasirakbal.secureloanapi.feature.user.entity.User;
 import com.yasirakbal.secureloanapi.feature.user.service.UserService;
 import jakarta.persistence.EntityManager;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +39,7 @@ public class LoanApplicationService {
     private LoanRepository loanRepository;
     private UserService userService;
     private EntityManager entityManager;
+    private InstallmentService installmentService;
 
     public LoanApplication createApplication(CreateLoanApplicationRequest request, Long customerId) {
         User customer = userService.getUserById(customerId);
@@ -65,7 +68,7 @@ public class LoanApplicationService {
             creationErrors.add(new DtiNotEligibleException(BigDecimal.valueOf(40), dti));
         }
 
-        BigDecimal monthlyInstallment = calculateMonthlyInstallment(requestedAmount,
+        BigDecimal monthlyInstallment = installmentService.calculateMonthlyInstallment(requestedAmount,
                 request.getLoanType().getMonthlyInterestRate(), request.getRequestedTerm());
         BigDecimal totalPayment = monthlyInstallment.multiply(BigDecimal.valueOf(requestedTerm));
 
@@ -151,13 +154,7 @@ public class LoanApplicationService {
         return totalExistingInstallments.add(newLoanMonthlyInstallment);
     }
 
-    public BigDecimal calculateMonthlyInstallment(BigDecimal creditAmount, BigDecimal monthlyInterestRate, int term) {
-        BigDecimal interestRatePowTerm = BigDecimal.ONE.add(monthlyInterestRate).pow(term);
-        BigDecimal numerator = creditAmount.multiply(monthlyInterestRate).multiply(interestRatePowTerm);
-        BigDecimal denominator = interestRatePowTerm.subtract(BigDecimal.ONE);
 
-        return numerator.divide(denominator, 2, RoundingMode.HALF_UP);
-    }
 
     public List<LoanApplication> getCustomersApplications(Long customerId, LoanApplicationStatus status) {
         return status == null
@@ -181,5 +178,37 @@ public class LoanApplicationService {
 
         loanApplication.setStatus(LoanApplicationStatus.CANCELLED);
         loanApplicationRepository.save(loanApplication);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<LoanApplication> getAllLoanApplications(
+            LoanApplicationStatus status,
+            Integer page,
+            Integer size,
+            String sortBy,
+            String direction
+    ) {
+        Sort.Direction sortDirection = direction.equalsIgnoreCase("ASC")
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
+
+        return status == null
+            ? loanApplicationRepository.findAll(pageable)
+            : loanApplicationRepository.findAllByStatus(status, pageable);
+    }
+
+    @Transactional
+    public LoanApplication approveLoanApplication(Long applicationId) {
+        LoanApplication loanApplication = loanApplicationRepository.findById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException("LoanApplication", applicationId));
+
+        if(!loanApplication.getStatus().equals(LoanApplicationStatus.PENDING)) {
+            throw new LoanExceptionCannotBeApprovedException();
+        }
+
+        loanApplication.setStatus(LoanApplicationStatus.APPROVED);
+        return loanApplicationRepository.save(loanApplication);
     }
 }

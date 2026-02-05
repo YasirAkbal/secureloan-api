@@ -8,14 +8,10 @@ import com.yasirakbal.secureloanapi.feature.application.enums.LoanApplicationSta
 import com.yasirakbal.secureloanapi.feature.application.mapper.CreateLoanAppResponseMapper;
 import com.yasirakbal.secureloanapi.feature.application.mapper.GetCustomersApplicationsResponseMapper;
 import com.yasirakbal.secureloanapi.feature.application.service.LoanApplicationService;
-import com.yasirakbal.secureloanapi.feature.loan.entity.Loan;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Null;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;

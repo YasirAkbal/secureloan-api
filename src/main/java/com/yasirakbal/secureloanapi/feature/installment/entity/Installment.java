@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class Installment extends BaseEntity {
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "loan_id")
     private Loan loan;
 
@@ -43,11 +43,13 @@ public class Installment extends BaseEntity {
 
     @Column(nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
-    private InstallmentStatus status;
+    @Builder.Default
+    private InstallmentStatus status = InstallmentStatus.PENDING;
 
     @Column
     private LocalDateTime paidDate;
 
     @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal paidAmount;
+    @Builder.Default
+    private BigDecimal paidAmount = BigDecimal.ZERO;
 }

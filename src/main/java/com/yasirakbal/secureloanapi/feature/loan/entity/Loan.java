@@ -11,6 +11,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -36,8 +37,8 @@ public class Loan extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private LoanType loanType;
 
-    @OneToMany(mappedBy = "loan")
-    private List<Installment> installments;
+    @OneToMany(mappedBy = "loan", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Installment> installments = new ArrayList<>();
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal principalAmount;
@@ -62,6 +63,7 @@ public class Loan extends BaseEntity {
     private BigDecimal remainingBalance;
 
     @Column(nullable = false)
+    @Builder.Default
     private Integer paidInstallments = 0;
 
     @Column(nullable = false)
