@@ -25,7 +25,7 @@ public class CreditOfficerService {
 
     @Transactional
     public Loan approveLoanApplication(Long loanAppId) {
-        LoanApplication approvedLoanApp = loanApplicationService.approveLoanApplication(loanAppId);
+        LoanApplication approvedLoanApp = loanApplicationService.makeLoanApplicationStatusApproved(loanAppId);
 
         Loan loanToCreate = buildLoan(approvedLoanApp);
         List<Installment> installments = installmentService.calculateInstallments(loanToCreate);
@@ -36,6 +36,11 @@ public class CreditOfficerService {
         //audit log
 
         return createdLoan;
+    }
+
+    @Transactional
+    public void rejectLoanApplication(Long loanAppId, String rejectionReason) {
+        loanApplicationService.makeLoanApplicationStatusRejected(loanAppId, rejectionReason);
     }
 
     private Loan buildLoan(LoanApplication loanApp) {

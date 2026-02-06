@@ -11,6 +11,7 @@ import com.yasirakbal.secureloanapi.feature.officer.mapper.ApproveLoanAppRespons
 import com.yasirakbal.secureloanapi.feature.officer.mapper.GetLoanApplicationsResponseMapper;
 import com.yasirakbal.secureloanapi.feature.officer.service.CreditOfficerService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -48,12 +49,18 @@ public class CreditOfficerController {
         return ResponseEntity.ok(paginationResponse);
     }
 
-    @GetMapping("/applications/{id}/approve")
-    public ResponseEntity<ApproveLoanApplicationResponse> approveLoanApplication(@PathVariable @Positive Long id
-    ) {
+    @PutMapping("/applications/{id}/approve")
+    public ResponseEntity<ApproveLoanApplicationResponse> approveLoanApplication(@PathVariable @Positive Long id) {
         Loan createdLoan = creditOfficerService.approveLoanApplication(id);
         ApproveLoanApplicationResponse response = approveLoanAppResponseMapper.map(createdLoan);
 
         return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/applications/{id}/reject")
+    public ResponseEntity<Void> rejectLoanApplication(@PathVariable @Positive Long id, @Valid @RequestBody @NotBlank String rejectionReason) {
+        creditOfficerService.rejectLoanApplication(id, rejectionReason);
+
+        return ResponseEntity.noContent().build();
     }
 }

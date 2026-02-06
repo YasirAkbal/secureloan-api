@@ -217,7 +217,7 @@ public class LoanApplicationService {
     }
 
     @Transactional
-    public LoanApplication approveLoanApplication(Long applicationId) {
+    public LoanApplication makeLoanApplicationStatusApproved(Long applicationId) {
         LoanApplication loanApplication = loanApplicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("LoanApplication", applicationId));
 
@@ -226,6 +226,20 @@ public class LoanApplicationService {
         }
 
         loanApplication.setStatus(LoanApplicationStatus.APPROVED);
+        return loanApplicationRepository.save(loanApplication);
+    }
+
+    @Transactional
+    public LoanApplication makeLoanApplicationStatusRejected(Long applicationId, String rejectionReason) {
+        LoanApplication loanApplication = loanApplicationRepository.findById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException("LoanApplication", applicationId));
+
+        if(!loanApplication.getStatus().equals(LoanApplicationStatus.PENDING)) {
+            throw new LoanExceptionCannotBeApprovedException();
+        }
+
+        loanApplication.setRejectionReasons(rejectionReason);
+        loanApplication.setStatus(LoanApplicationStatus.REJECTED);
         return loanApplicationRepository.save(loanApplication);
     }
 }
