@@ -55,7 +55,7 @@ public class LoanApplicationController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("@securityService.canAccessApplication(#id, #authentication)")
+    @PreAuthorize("@loanAppSecurityService.canAccessApplication(#id, #authentication)")
     public ResponseEntity<GetCustomersApplicationsResponse> getApplication(@PathVariable @Positive Long id, Authentication authentication) {
         LoanApplication loanApplication =  loanApplicationService.getLoanApplicationById(id);
         GetCustomersApplicationsResponse response = getCustomersApplicationsResponseMapper.map(loanApplication);
@@ -63,7 +63,7 @@ public class LoanApplicationController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@securityService.canDeleteApplication(#id, #authentication)")
+    @PreAuthorize("@loanAppSecurityService.canDeleteApplication(#id, #authentication)")
     public ResponseEntity<Void> deleteApplication(@PathVariable @Positive Long id, Authentication authentication) {
         loanApplicationService.deleteLoanApplication(id);
         return ResponseEntity.noContent().build();

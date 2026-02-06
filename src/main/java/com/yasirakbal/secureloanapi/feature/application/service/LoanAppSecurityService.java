@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class SecurityService {
+public class LoanAppSecurityService {
     private final LoanApplicationRepository loanApplicationRepository;
 
     public boolean canAccessApplication(Long applicationId, Authentication authentication) {

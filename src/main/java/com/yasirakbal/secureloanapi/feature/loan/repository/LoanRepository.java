@@ -13,4 +13,5 @@ import java.util.Optional;
 public interface LoanRepository extends JpaRepository<Loan, Long> {
     List<Loan> findByCustomerIdAndStatus(Long customerId, LoanStatusType status);
     Optional<Loan> findByLoanType(LoanType loanType);
+    List<Loan> findByCustomerId(Long customerId);
 }
