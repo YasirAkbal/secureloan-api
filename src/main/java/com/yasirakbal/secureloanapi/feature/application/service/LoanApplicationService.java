@@ -8,6 +8,7 @@ import com.yasirakbal.secureloanapi.feature.application.entity.LoanApplication;
 import com.yasirakbal.secureloanapi.feature.application.enums.LoanApplicationStatus;
 import com.yasirakbal.secureloanapi.feature.application.exception.*;
 import com.yasirakbal.secureloanapi.feature.application.repository.LoanApplicationRepository;
+import com.yasirakbal.secureloanapi.feature.auth.exception.InvalidCredentialsException;
 import com.yasirakbal.secureloanapi.feature.installment.service.InstallmentService;
 import com.yasirakbal.secureloanapi.feature.loan.entity.Loan;
 import com.yasirakbal.secureloanapi.feature.loan.enums.LoanStatusType;
@@ -68,10 +69,15 @@ public class LoanApplicationService {
             creationErrors.add(new DtiNotEligibleException(BigDecimal.valueOf(40), dti));
         }
 
+        LoanApplicationStatus applicationStatusWithCreditScore = determineApplicationStatusWithCreditScore(customer.getCreditScore());
+        if(applicationStatusWithCreditScore.equals(LoanApplicationStatus.AUTO_REJECTED)) {
+            creationErrors.add(new CustomerCreditScoreNotEligible(500));
+        }
+
+
         BigDecimal monthlyInstallment = installmentService.calculateMonthlyInstallment(requestedAmount,
                 request.getLoanType().getMonthlyInterestRate(), request.getRequestedTerm());
         BigDecimal totalPayment = monthlyInstallment.multiply(BigDecimal.valueOf(requestedTerm));
-
         if(!creationErrors.isEmpty()) { //rejection
             var rejectedLoanApp = buildForRejectedCase(customerId, requestedLoanType, requestedAmount,
                     requestedTerm, purpose, monthlyInstallment, interestRate, totalPayment, dti, creationErrors);
@@ -81,11 +87,21 @@ public class LoanApplicationService {
         }
 
 
-        var pendingLoanApp = buildForPendingCase(customerId, requestedLoanType, requestedAmount,
-                requestedTerm, purpose, monthlyInstallment, interestRate, totalPayment, dti);
-        loanApplicationRepository.save(pendingLoanApp);
+        var createdLoanApp = buildForSuccessCase(customerId, requestedLoanType, requestedAmount,
+                requestedTerm, purpose, monthlyInstallment, interestRate, totalPayment, dti, applicationStatusWithCreditScore);
+        loanApplicationRepository.save(createdLoanApp);
 
-        return pendingLoanApp;
+        return createdLoanApp;
+    }
+
+    private LoanApplicationStatus determineApplicationStatusWithCreditScore(int creditScore) {
+        if(creditScore < 500) {
+            return LoanApplicationStatus.AUTO_REJECTED;
+        } else if(creditScore < 750) {
+            return LoanApplicationStatus.PENDING;
+        } else {
+            return LoanApplicationStatus.APPROVED;
+        }
     }
 
     private LoanApplication buildForRejectedCase(Long customerId, LoanType requestedLoanType, BigDecimal requestedAmount,
@@ -94,9 +110,10 @@ public class LoanApplicationService {
         return build(customerId, requestedLoanType, requestedAmount, requestedTerm, purpose, monthlyInstallment, interestRate, totalPayment, dti, creationErrors, LoanApplicationStatus.AUTO_REJECTED);
     }
 
-    private LoanApplication buildForPendingCase(Long customerId, LoanType requestedLoanType, BigDecimal requestedAmount, int requestedTerm, String purpose, BigDecimal monthlyInstallment, BigDecimal interestRate, BigDecimal totalPayment, BigDecimal dti) {
-        return build(customerId, requestedLoanType, requestedAmount, requestedTerm, purpose, monthlyInstallment, interestRate, totalPayment, dti, null, LoanApplicationStatus.PENDING);
+    private LoanApplication buildForSuccessCase(Long customerId, LoanType requestedLoanType, BigDecimal requestedAmount, int requestedTerm, String purpose, BigDecimal monthlyInstallment, BigDecimal interestRate, BigDecimal totalPayment, BigDecimal dti, LoanApplicationStatus status) {
+        return build(customerId, requestedLoanType, requestedAmount, requestedTerm, purpose, monthlyInstallment, interestRate, totalPayment, dti, null, status);
     }
+
 
     private LoanApplication build(Long customerId, LoanType requestedLoanType, BigDecimal requestedAmount, int requestedTerm,
                                   String purpose, BigDecimal monthlyInstallment, BigDecimal interestRate,
