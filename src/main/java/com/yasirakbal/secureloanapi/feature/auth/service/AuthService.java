@@ -8,10 +8,9 @@ import com.yasirakbal.secureloanapi.feature.audit.utils.RequestInfoUtils;
 import com.yasirakbal.secureloanapi.feature.auth.adapter.AppUserAdapter;
 import com.yasirakbal.secureloanapi.feature.auth.dto.LoginResponse;
 import com.yasirakbal.secureloanapi.feature.auth.dto.RefreshTokenResponse;
-import com.yasirakbal.secureloanapi.feature.auth.exception.InvalidCredentialsException;
-import com.yasirakbal.secureloanapi.feature.auth.exception.UserPasswordExpiredException;
-import com.yasirakbal.secureloanapi.feature.auth.exception.UserAccountDisabledException;
-import com.yasirakbal.secureloanapi.feature.auth.exception.UserAccountLockedException;
+import com.yasirakbal.secureloanapi.feature.auth.entity.RefreshToken;
+import com.yasirakbal.secureloanapi.feature.auth.exception.*;
+import com.yasirakbal.secureloanapi.feature.auth.repository.RefreshTokenRepository;
 import com.yasirakbal.secureloanapi.feature.blacklist.entity.JwtBlacklist;
 import com.yasirakbal.secureloanapi.feature.blacklist.enums.JwtBlacklistReason;
 import com.yasirakbal.secureloanapi.feature.blacklist.service.JwtBlacklistService;
@@ -52,6 +51,7 @@ public class AuthService {
     private LoginHistoryService loginHistoryService;
     private UserService userService;
     private RefreshTokenService refreshTokenService;
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Transactional
     @Auditable(eventType = AuditEventType.USER_CREATED, resource = "#userToCreate.username")
@@ -184,12 +184,18 @@ public class AuthService {
 
     @Transactional
     public RefreshTokenResponse refreshToken(String refreshToken) {
+        RefreshToken oldToken = refreshTokenRepository.findByToken(refreshToken)
+                .orElseThrow(InvalidRefreshTokenException::new);
+
         Long userId = refreshTokenService.validateRefreshTokenAndGetUserId(refreshToken);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
         String accessToken = generateToken(new AppUserAdapter(user));
-        String newRefreshToken = refreshTokenService.generateRefreshToken(user.getId());
+        String newRefreshToken = refreshTokenService.generateRefreshTokenWithAbsoluteExpiry(
+                user.getId(),
+                oldToken.getAbsoluteExpiryTime()
+        );
 
         return RefreshTokenResponse.builder()
                 .refreshToken(newRefreshToken)

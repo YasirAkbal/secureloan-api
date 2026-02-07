@@ -4,6 +4,7 @@ import com.yasirakbal.secureloanapi.feature.auth.entity.RefreshToken;
 import com.yasirakbal.secureloanapi.feature.auth.exception.ExpiredRefreshTokenException;
 import com.yasirakbal.secureloanapi.feature.auth.exception.InvalidRefreshTokenException;
 import com.yasirakbal.secureloanapi.feature.auth.exception.RefreshTokenAlreadyUsedException;
+import com.yasirakbal.secureloanapi.feature.auth.exception.SessionExpiredException;
 import com.yasirakbal.secureloanapi.feature.auth.repository.RefreshTokenRepository;
 import com.yasirakbal.secureloanapi.feature.user.entity.User;
 import com.yasirakbal.secureloanapi.feature.user.repository.UserRepository;
@@ -24,6 +25,8 @@ import java.util.UUID;
 public class RefreshTokenService {
 
     private static final Duration REFRESH_TOKEN_VALIDITY = Duration.ofDays(7);
+    private static final Duration ABSOLUTE_SESSION_TIMEOUT = Duration.ofDays(30);
+
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
 
@@ -36,9 +39,13 @@ public class RefreshTokenService {
         final User user = userRepository.findById(userId).orElseThrow();
         final String newToken = UUID.randomUUID().toString();
 
+        LocalDateTime now = LocalDateTime.now();
+
+
         final RefreshToken refreshToken = RefreshToken.builder()
                 .token(newToken)
-                .expirationTime(LocalDateTime.now().plus(REFRESH_TOKEN_VALIDITY))
+                .expirationTime(now.plus(REFRESH_TOKEN_VALIDITY))
+                .absoluteExpiryTime(now.plus(ABSOLUTE_SESSION_TIMEOUT))
                 .isTokenUsedBefore(false)
                 .user(user)
                 .build();
@@ -54,11 +61,18 @@ public class RefreshTokenService {
                 .findByToken(givenToken)
                 .orElseThrow(InvalidRefreshTokenException::new);
 
-        if(refreshToken.getExpirationTime().isBefore(LocalDateTime.now())) {
+        LocalDateTime now = LocalDateTime.now();
+        Long userId = refreshToken.getUser().getId();
+
+        if(refreshToken.getExpirationTime().isBefore(now)) {
             throw new ExpiredRefreshTokenException();
         }
 
-        Long userId = refreshToken.getUser().getId();
+        if (refreshToken.getAbsoluteExpiryTime().isBefore(now)) {
+            self.deleteUsersAllRefreshTokens(userId);
+            throw new SessionExpiredException();
+        }
+
         if(refreshToken.getIsTokenUsedBefore()) {
             self.deleteUsersAllRefreshTokens(userId);
             throw new RefreshTokenAlreadyUsedException();
@@ -68,6 +82,26 @@ public class RefreshTokenService {
         refreshTokenRepository.save(refreshToken);
 
         return userId;
+    }
+
+    @Transactional
+    public String generateRefreshTokenWithAbsoluteExpiry(
+            Long userId,
+            LocalDateTime originalAbsoluteExpiry) {
+
+        User user = userRepository.findById(userId).orElseThrow();
+        String newToken = UUID.randomUUID().toString();
+
+        RefreshToken refreshToken = RefreshToken.builder()
+                .token(newToken)
+                .expirationTime(LocalDateTime.now().plus(REFRESH_TOKEN_VALIDITY))
+                .absoluteExpiryTime(originalAbsoluteExpiry)
+                .isTokenUsedBefore(false)
+                .user(user)
+                .build();
+
+        refreshTokenRepository.save(refreshToken);
+        return newToken;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

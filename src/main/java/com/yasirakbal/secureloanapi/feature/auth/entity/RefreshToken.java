@@ -28,6 +28,9 @@ public class RefreshToken {
     private LocalDateTime expirationTime;
 
     @Column(nullable = false)
+    private LocalDateTime absoluteExpiryTime;
+
+    @Column(nullable = false)
     private Boolean isTokenUsedBefore = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
