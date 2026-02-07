@@ -24,7 +24,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.*;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -151,13 +150,16 @@ public class AuthService {
 
     private String generateToken(AppUserAdapter userAdapter) {
         User user = userAdapter.getUser();
+        var authorities = userAdapter.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.joining(" "));
 
         var claimsSet = JwtClaimsSet.builder()
                 .subject(userAdapter.getUsername())
                 .issuer("secureloan-api")
                 .issuedAt(Instant.now())
                 .expiresAt(Instant.now().plus(30, ChronoUnit.MINUTES))
-                .claim("scope", userAdapter.getAuthorities())
+                .claim("scope", authorities)
                 .claim("userId", user.getId())
                 .build();
 
@@ -189,9 +191,8 @@ public class AuthService {
         String accessToken = generateToken(new AppUserAdapter(user));
         String newRefreshToken = refreshTokenService.generateRefreshToken(user.getId());
 
-
         return RefreshTokenResponse.builder()
-                .refreshToken(refreshToken)
+                .refreshToken(newRefreshToken)
                 .accessToken(accessToken)
                 .tokenType("Bearer")
                 .expiresIn(30 * 60)

@@ -37,11 +37,6 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @GetMapping("/hello")
-    public String hello(Authentication authentication) {
-        return "Hello, %s. Your authorities are: %s".formatted(authentication.getName(), authentication.getAuthorities());
-    }
-
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
         LoginResponse loginResponse = authService.login(request.getUsername(), request.getPassword(), httpRequest);
