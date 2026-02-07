@@ -2,6 +2,8 @@ package com.yasirakbal.secureloanapi.feature.officer.service;
 
 import com.yasirakbal.secureloanapi.feature.application.entity.LoanApplication;
 import com.yasirakbal.secureloanapi.feature.application.service.LoanApplicationService;
+import com.yasirakbal.secureloanapi.feature.audit.annotation.Auditable;
+import com.yasirakbal.secureloanapi.feature.audit.enums.AuditEventType;
 import com.yasirakbal.secureloanapi.feature.installment.entity.Installment;
 import com.yasirakbal.secureloanapi.feature.installment.service.InstallmentService;
 import com.yasirakbal.secureloanapi.feature.loan.entity.Loan;
@@ -24,6 +26,7 @@ public class CreditOfficerService {
     private InstallmentService installmentService;
 
     @Transactional
+    @Auditable(eventType = AuditEventType.LOAN_APPROVED)
     public Loan approveLoanApplication(Long loanAppId) {
         LoanApplication approvedLoanApp = loanApplicationService.makeLoanApplicationStatusApproved(loanAppId);
 
@@ -39,6 +42,7 @@ public class CreditOfficerService {
     }
 
     @Transactional
+    @Auditable(eventType = AuditEventType.LOAN_REJECTED)
     public void rejectLoanApplication(Long loanAppId, String rejectionReason) {
         loanApplicationService.makeLoanApplicationStatusRejected(loanAppId, rejectionReason);
     }

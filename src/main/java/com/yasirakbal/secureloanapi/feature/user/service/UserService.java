@@ -1,6 +1,8 @@
 package com.yasirakbal.secureloanapi.feature.user.service;
 
 import com.yasirakbal.secureloanapi.common.exception.NonRollbackBusinessException;
+import com.yasirakbal.secureloanapi.feature.audit.annotation.Auditable;
+import com.yasirakbal.secureloanapi.feature.audit.enums.AuditEventType;
 import com.yasirakbal.secureloanapi.feature.auth.exception.InvalidCredentialsException;
 import com.yasirakbal.secureloanapi.feature.auth.exception.UserAccountLockedException;
 import com.yasirakbal.secureloanapi.feature.blacklist.entity.JwtBlacklist;
@@ -30,6 +32,7 @@ public class UserService {
     private PasswordEncoder passwordEncoder;
     private JwtBlacklistService jwtBlacklistService;
 
+    @Transactional(readOnly = true)
     public User getUserByUsername(String username) {
         User user = userRepository.findUserByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException(username));
@@ -37,6 +40,7 @@ public class UserService {
         return user;
     }
 
+    @Transactional(readOnly = true)
     public User getUserById(long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException(id));
@@ -45,6 +49,7 @@ public class UserService {
     }
 
     @Transactional
+    @Auditable(eventType = AuditEventType.PASSWORD_CHANGED, resource = "#jwt.getClaim('userId')")
     public void changePassword(ChangePasswordRequest request, Jwt jwt) {
         Long userId = jwt.getClaim("userId");
         User user = userRepository.findById(userId)
@@ -79,6 +84,7 @@ public class UserService {
             propagation = Propagation.REQUIRES_NEW,
             noRollbackFor = NonRollbackBusinessException.class
     )
+    @Auditable(eventType = AuditEventType.PASSWORD_CHANGED)
     public RuntimeException handleFailedLogin(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
@@ -101,7 +107,9 @@ public class UserService {
                 .addDetail("remainingAttempts", 5 - attempts);
     }
 
+    //bu metotu admin service'e tasimaliyim
     @Transactional
+    @Auditable(eventType = AuditEventType.USER_UNLOCKED, resource = "#jwt.getClaim('userId')")
     public void unlockAccount(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
@@ -113,6 +121,7 @@ public class UserService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Auditable(eventType = AuditEventType.USER_UNLOCKED)
     public void markPasswordAsExpired(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));

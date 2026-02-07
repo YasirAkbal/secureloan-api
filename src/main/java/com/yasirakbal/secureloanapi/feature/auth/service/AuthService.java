@@ -1,6 +1,8 @@
 package com.yasirakbal.secureloanapi.feature.auth.service;
 
 import com.yasirakbal.secureloanapi.common.exception.BusinessException;
+import com.yasirakbal.secureloanapi.feature.audit.annotation.Auditable;
+import com.yasirakbal.secureloanapi.feature.audit.enums.AuditEventType;
 import com.yasirakbal.secureloanapi.feature.audit.service.LoginHistoryService;
 import com.yasirakbal.secureloanapi.feature.audit.utils.RequestInfoUtils;
 import com.yasirakbal.secureloanapi.feature.auth.adapter.AppUserAdapter;
@@ -55,6 +57,7 @@ public class AuthService {
     private UserService userService;
 
     @Transactional
+    @Auditable(eventType = AuditEventType.USER_CREATED, resource = "#userToCreate.username")
     public User registerUser(User userToCreate) {
         List<BusinessException> validationErrors = validateUser(userToCreate);
         if(!validationErrors.isEmpty()) {

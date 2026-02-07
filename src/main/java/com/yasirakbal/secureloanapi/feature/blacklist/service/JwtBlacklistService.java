@@ -1,5 +1,7 @@
 package com.yasirakbal.secureloanapi.feature.blacklist.service;
 
+import com.yasirakbal.secureloanapi.feature.audit.annotation.Auditable;
+import com.yasirakbal.secureloanapi.feature.audit.enums.AuditEventType;
 import com.yasirakbal.secureloanapi.feature.blacklist.entity.JwtBlacklist;
 import com.yasirakbal.secureloanapi.feature.blacklist.repository.JwtBlacklistRepository;
 import lombok.AllArgsConstructor;
@@ -16,6 +18,8 @@ import java.time.LocalDateTime;
 public class JwtBlacklistService {
     private JwtBlacklistRepository jwtBlacklistRepository;
 
+    @Transactional
+    @Auditable(eventType = AuditEventType.TOKEN_BLACKLISTED)
     public void createJwtBlacklist(JwtBlacklist jwtBlacklist) {
         jwtBlacklistRepository.save(jwtBlacklist);
     }

@@ -7,11 +7,9 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.yasirakbal.secureloanapi.feature.auth.service.CustomUserDetailsService;
 import com.yasirakbal.secureloanapi.security.filter.JwtBlacklistFilter;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.CredentialsExpiredException;
 import org.springframework.security.authentication.ProviderManager;
@@ -65,29 +63,6 @@ public class SecurityConfig {
                 )
                 .csrf(AbstractHttpConfigurer::disable)
                 .build();
-    }
-
-    @Bean
-    public JwtDecoder jwtDecoder(KeyPair keyPair)  {
-        return NimbusJwtDecoder
-                .withPublicKey((RSAPublicKey)keyPair.getPublic())
-                .build();
-    }
-
-    @Bean
-    public JWKSource<SecurityContext> jwkSource(KeyPair keyPair) {
-        var rsaKey = new RSAKey.Builder((RSAPublicKey) keyPair.getPublic())
-                .privateKey(keyPair.getPrivate())
-                .keyID(UUID.randomUUID().toString())
-                .build();
-
-        var jwkSet = new JWKSet(rsaKey);
-        return new ImmutableJWKSet<>(jwkSet);
-    }
-
-    @Bean
-    public JwtEncoder jwtEncoder(JWKSource<SecurityContext> jwkSource) {
-        return new NimbusJwtEncoder(jwkSource);
     }
 
     @Bean

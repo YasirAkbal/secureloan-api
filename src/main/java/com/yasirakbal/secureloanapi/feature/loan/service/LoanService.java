@@ -2,6 +2,8 @@ package com.yasirakbal.secureloanapi.feature.loan.service;
 
 import com.yasirakbal.secureloanapi.common.exception.BusinessException;
 import com.yasirakbal.secureloanapi.common.exception.ResourceNotFoundException;
+import com.yasirakbal.secureloanapi.feature.audit.annotation.Auditable;
+import com.yasirakbal.secureloanapi.feature.audit.enums.AuditEventType;
 import com.yasirakbal.secureloanapi.feature.installment.entity.Installment;
 import com.yasirakbal.secureloanapi.feature.installment.enums.InstallmentStatus;
 import com.yasirakbal.secureloanapi.feature.installment.repository.InstallmentRepository;
@@ -31,6 +33,7 @@ public class LoanService {
     private InstallmentRepository installmentRepository;
 
     @Transactional
+    @Auditable(eventType = AuditEventType.LOAN_CREATED, resource = "#loanToCreate.getApplicationId")
     public Loan createLoan(Loan loanToCreate) {
         return loanRepository.save(loanToCreate);
     }
@@ -47,6 +50,7 @@ public class LoanService {
     }
 
     @Transactional
+    @Auditable(eventType = AuditEventType.INSTALLMENT_PAID, resource = "#loanId" + ":" + "#installmentId")
     public PayInstallmentResponse payInstallment(Long loanId, Long installmentId, PayInstallmentRequest request) {
         Loan loan = loanRepository.findById(loanId)
                 .orElseThrow(() -> new ResourceNotFoundException("Loan", loanId));

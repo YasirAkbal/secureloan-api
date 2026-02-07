@@ -8,6 +8,8 @@ import com.yasirakbal.secureloanapi.feature.application.entity.LoanApplication;
 import com.yasirakbal.secureloanapi.feature.application.enums.LoanApplicationStatus;
 import com.yasirakbal.secureloanapi.feature.application.exception.*;
 import com.yasirakbal.secureloanapi.feature.application.repository.LoanApplicationRepository;
+import com.yasirakbal.secureloanapi.feature.audit.annotation.Auditable;
+import com.yasirakbal.secureloanapi.feature.audit.enums.AuditEventType;
 import com.yasirakbal.secureloanapi.feature.auth.exception.InvalidCredentialsException;
 import com.yasirakbal.secureloanapi.feature.installment.service.InstallmentService;
 import com.yasirakbal.secureloanapi.feature.loan.entity.Loan;
@@ -42,6 +44,8 @@ public class LoanApplicationService {
     private EntityManager entityManager;
     private InstallmentService installmentService;
 
+    @Transactional
+    @Auditable(eventType = AuditEventType.LOAN_APPLICATION_CREATED, resource = "#customerId")
     public LoanApplication createApplication(CreateLoanApplicationRequest request, Long customerId) {
         User customer = userService.getUserById(customerId);
         LoanType requestedLoanType = request.getLoanType();
@@ -172,19 +176,21 @@ public class LoanApplicationService {
     }
 
 
-
+    @Transactional(readOnly = true)
     public List<LoanApplication> getCustomersApplications(Long customerId, LoanApplicationStatus status) {
         return status == null
                 ? loanApplicationRepository.findByCustomerId(customerId)
                 : loanApplicationRepository.findByCustomerIdAndStatus(customerId, status);
     }
 
+    @Transactional(readOnly = true)
     public LoanApplication getLoanApplicationById(Long id) {
         return loanApplicationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("LoanApplication", id));
     }
 
     @Transactional
+    @Auditable(eventType = AuditEventType.LOAN_DELETED)
     public void deleteLoanApplication(Long id) {
         LoanApplication loanApplication = loanApplicationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("LoanApplication", id));
@@ -217,6 +223,7 @@ public class LoanApplicationService {
     }
 
     @Transactional
+    @Auditable(eventType = AuditEventType.LOAN_APPROVED)
     public LoanApplication makeLoanApplicationStatusApproved(Long applicationId) {
         LoanApplication loanApplication = loanApplicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("LoanApplication", applicationId));
@@ -230,6 +237,7 @@ public class LoanApplicationService {
     }
 
     @Transactional
+    @Auditable(eventType = AuditEventType.LOAN_REJECTED)
     public LoanApplication makeLoanApplicationStatusRejected(Long applicationId, String rejectionReason) {
         LoanApplication loanApplication = loanApplicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("LoanApplication", applicationId));

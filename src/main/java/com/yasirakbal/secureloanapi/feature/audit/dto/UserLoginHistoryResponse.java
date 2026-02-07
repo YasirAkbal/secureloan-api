@@ -1,5 +1,6 @@
 package com.yasirakbal.secureloanapi.feature.audit.dto;
 
+import com.yasirakbal.secureloanapi.feature.audit.enums.AuditEventType;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -16,4 +17,5 @@ public class UserLoginHistoryResponse {
     private Boolean success;
     private String failureReason;
     private LocalDateTime timestamp;
+    private AuditEventType eventType;
 }

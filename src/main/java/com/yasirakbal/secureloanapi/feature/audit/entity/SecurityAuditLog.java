@@ -1,6 +1,7 @@
 package com.yasirakbal.secureloanapi.feature.audit.entity;
 
 import com.yasirakbal.secureloanapi.common.entity.BaseEntity;
+import com.yasirakbal.secureloanapi.feature.audit.enums.AuditEventType;
 import com.yasirakbal.secureloanapi.feature.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -24,20 +25,12 @@ public class SecurityAuditLog extends BaseEntity {
     @JoinColumn(name = "user_id")
     private User user;
 
-    @Column(nullable = false, length = 50)
-    private String action;
+    @Column
+    @Enumerated(EnumType.STRING)
+    private AuditEventType eventType;
 
     @Column(length = 255)
     private String resource;
-
-    @Column(length = 10)
-    private String httpMethod;
-
-    @Column(length = 50)
-    private String ipAddress;
-
-    @Column(length = 255)
-    private String userAgent;
 
     @Column(nullable = false)
     private Boolean success;
@@ -49,6 +42,5 @@ public class SecurityAuditLog extends BaseEntity {
     private String details;
 
     @Column(nullable = false)
-    private LocalDateTime timestamp;
-
+    private LocalDateTime occurredAt;
 }

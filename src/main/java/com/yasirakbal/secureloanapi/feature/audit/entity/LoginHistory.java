@@ -1,6 +1,7 @@
 package com.yasirakbal.secureloanapi.feature.audit.entity;
 
 import com.yasirakbal.secureloanapi.common.entity.BaseEntity;
+import com.yasirakbal.secureloanapi.feature.audit.enums.AuditEventType;
 import com.yasirakbal.secureloanapi.feature.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;

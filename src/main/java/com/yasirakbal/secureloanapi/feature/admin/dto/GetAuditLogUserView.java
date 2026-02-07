@@ -4,4 +4,6 @@ import lombok.Data;
 
 @Data
 public class GetAuditLogUserView {
+    private String username;
+    private String email;
 }
