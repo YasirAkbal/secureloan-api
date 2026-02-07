@@ -7,6 +7,7 @@ import com.yasirakbal.secureloanapi.feature.audit.service.LoginHistoryService;
 import com.yasirakbal.secureloanapi.feature.audit.utils.RequestInfoUtils;
 import com.yasirakbal.secureloanapi.feature.auth.adapter.AppUserAdapter;
 import com.yasirakbal.secureloanapi.feature.auth.dto.LoginResponse;
+import com.yasirakbal.secureloanapi.feature.auth.dto.RefreshTokenResponse;
 import com.yasirakbal.secureloanapi.feature.auth.exception.InvalidCredentialsException;
 import com.yasirakbal.secureloanapi.feature.auth.exception.UserPasswordExpiredException;
 import com.yasirakbal.secureloanapi.feature.auth.exception.UserAccountDisabledException;
@@ -16,10 +17,7 @@ import com.yasirakbal.secureloanapi.feature.blacklist.enums.JwtBlacklistReason;
 import com.yasirakbal.secureloanapi.feature.blacklist.service.JwtBlacklistService;
 import com.yasirakbal.secureloanapi.feature.user.entity.User;
 import com.yasirakbal.secureloanapi.feature.user.enums.UserRole;
-import com.yasirakbal.secureloanapi.feature.user.exception.EmailDuplicationException;
-import com.yasirakbal.secureloanapi.feature.user.exception.IdentityNumberDuplicationException;
-import com.yasirakbal.secureloanapi.feature.user.exception.UserCreationValidationException;
-import com.yasirakbal.secureloanapi.feature.user.exception.UsernameDuplicationException;
+import com.yasirakbal.secureloanapi.feature.user.exception.*;
 import com.yasirakbal.secureloanapi.feature.user.repository.UserRepository;
 import com.yasirakbal.secureloanapi.feature.user.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,7 +32,6 @@ import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -55,6 +52,7 @@ public class AuthService {
     private JwtBlacklistService jwtBlacklistService;
     private LoginHistoryService loginHistoryService;
     private UserService userService;
+    private RefreshTokenService refreshTokenService;
 
     @Transactional
     @Auditable(eventType = AuditEventType.USER_CREATED, resource = "#userToCreate.username")
@@ -96,26 +94,10 @@ public class AuthService {
             var authentication = authenticationManager.authenticate(authToken);
 
             AppUserAdapter userAdapter = (AppUserAdapter) authentication.getPrincipal();
-            User user = userAdapter.getUser();
 
-            loginHistoryService.saveSuccessfulLogin(user, requestInfo);
+            loginHistoryService.saveSuccessfulLogin(userAdapter.getUser(), requestInfo);
 
-            String token = generateToken(authentication);
-
-            LoginResponse.LoginUserResponse userResponse = LoginResponse.LoginUserResponse.builder()
-                    .id(user.getId())
-                    .email(user.getEmail())
-                    .role(user.getRole().getValue())
-                    .fullName(user.getFullName())
-                    .username(user.getUsername())
-                    .build();
-
-            return LoginResponse.builder()
-                    .accessToken(token)
-                    .tokenType("Bearer")
-                    .expiresIn(1800)
-                    .user(userResponse)
-                    .build();
+            return getLoginResponse(userAdapter);
 
         } catch (LockedException e) {
             User user = userRepository.findUserByUsername(username).orElse(null);
@@ -145,20 +127,37 @@ public class AuthService {
         }
     }
 
-    private String generateToken(Authentication authentication) {
-        AppUserAdapter adapter = (AppUserAdapter) authentication.getPrincipal();
-        User user = adapter.getUser();
+    private LoginResponse getLoginResponse(AppUserAdapter userAdapter) {
+        User user = userAdapter.getUser();
+        String token = generateToken(userAdapter);
+        String refreshToken = refreshTokenService.generateRefreshToken(user.getId());
 
-        var authorities = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.joining(" "));
+        LoginResponse.LoginUserResponse userResponse = LoginResponse.LoginUserResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .role(user.getRole().getValue())
+                .fullName(user.getFullName())
+                .username(user.getUsername())
+                .build();
+
+        return LoginResponse.builder()
+                .accessToken(token)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .expiresIn(30 * 60)
+                .user(userResponse)
+                .build();
+    }
+
+    private String generateToken(AppUserAdapter userAdapter) {
+        User user = userAdapter.getUser();
 
         var claimsSet = JwtClaimsSet.builder()
-                .subject(authentication.getName())
+                .subject(userAdapter.getUsername())
                 .issuer("secureloan-api")
                 .issuedAt(Instant.now())
                 .expiresAt(Instant.now().plus(30, ChronoUnit.MINUTES))
-                .claim("scope", authorities)
+                .claim("scope", userAdapter.getAuthorities())
                 .claim("userId", user.getId())
                 .build();
 
@@ -179,5 +178,23 @@ public class AuthService {
                 .build();
 
         jwtBlacklistService.createJwtBlacklist(jwtBlacklist);
+    }
+
+    @Transactional
+    public RefreshTokenResponse refreshToken(String refreshToken) {
+        Long userId = refreshTokenService.validateRefreshTokenAndGetUserId(refreshToken);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+
+        String accessToken = generateToken(new AppUserAdapter(user));
+        String newRefreshToken = refreshTokenService.generateRefreshToken(user.getId());
+
+
+        return RefreshTokenResponse.builder()
+                .refreshToken(refreshToken)
+                .accessToken(accessToken)
+                .tokenType("Bearer")
+                .expiresIn(30 * 60)
+                .build();
     }
 }

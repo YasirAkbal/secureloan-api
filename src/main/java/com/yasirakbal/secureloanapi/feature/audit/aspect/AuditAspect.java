@@ -124,7 +124,7 @@ public class AuditAspect {
             StringBuilder resolved = new StringBuilder();
 
             while (matcher.find()) {
-                String fullMatch = matcher.group(0);   // #loanId veya #result.id
+                String fullMatch = matcher.group(0);
                 Object value = parser.parseExpression(fullMatch).getValue(context);
                 matcher.appendReplacement(resolved, value != null ? Matcher.quoteReplacement(value.toString()) : "null");
             }

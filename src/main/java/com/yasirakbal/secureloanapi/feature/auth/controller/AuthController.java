@@ -1,15 +1,13 @@
 package com.yasirakbal.secureloanapi.feature.auth.controller;
 
-import com.yasirakbal.secureloanapi.feature.auth.dto.LoginRequest;
-import com.yasirakbal.secureloanapi.feature.auth.dto.LoginResponse;
-import com.yasirakbal.secureloanapi.feature.auth.dto.UserRegisterRequest;
-import com.yasirakbal.secureloanapi.feature.auth.dto.UserRegisterResponse;
+import com.yasirakbal.secureloanapi.feature.auth.dto.*;
 import com.yasirakbal.secureloanapi.feature.auth.mapper.UserRegisterRequestMapper;
 import com.yasirakbal.secureloanapi.feature.auth.mapper.UserRegisterResponseMapper;
 import com.yasirakbal.secureloanapi.feature.auth.service.AuthService;
 import com.yasirakbal.secureloanapi.feature.user.entity.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -56,5 +54,12 @@ public class AuthController {
         authService.logoutUser(jwt);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<RefreshTokenResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        RefreshTokenResponse refreshTokenResponse = authService.refreshToken(request.getRefreshToken());
+
+        return ResponseEntity.ok(refreshTokenResponse);
     }
 }
