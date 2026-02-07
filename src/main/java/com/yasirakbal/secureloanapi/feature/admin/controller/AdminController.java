@@ -56,7 +56,19 @@ public class AdminController {
 
     @PostMapping("/users/{id}/lock")
     public ResponseEntity<Void> lockUser(@RequestParam @Positive Long userId) {
+        adminService.lockUser(userId);
+        return ResponseEntity.noContent().build();
+    }
 
-        return null;
+    @PostMapping("/users/{id}/unlock")
+    public ResponseEntity<Void> unlockUser(@RequestParam @Positive Long userId) {
+        adminService.unlockUser(userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/users/{id}/force-logout`")
+    public ResponseEntity<Void> forceLogoutUser(@RequestParam @Positive Long userId) {
+        adminService.forceLogoutUser(userId);
+        return ResponseEntity.noContent().build();
     }
 }

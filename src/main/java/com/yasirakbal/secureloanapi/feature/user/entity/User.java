@@ -100,6 +100,9 @@ public class User extends BaseEntity {
     @Column
     private LocalDateTime lastLoginAt;
 
+    @Column
+    private LocalDateTime tokensInvalidatedAt;
+
     @Column(length = 50)
     private String lastLoginIp;
 
